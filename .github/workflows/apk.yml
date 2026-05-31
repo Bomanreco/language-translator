@@ -28,17 +28,23 @@ jobs:
 
       - name: Download and setup Android SDK
         run: |
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
           unzip -q tools.zip
           rm tools.zip
+          ls -la
 
-      - name: Rename SDK folder to 'latest'
+      - name: Fix SDK folder structure
         run: |
-          cd $HOME/android-sdk
-          # The extracted folder is already named 'cmdline-tools'
-          mv cmdline-tools cmdline-tools/latest 2>/dev/null || true
+          cd $HOME/android-sdk/cmdline-tools
+          # The extracted folder 'cmdline-tools' contains bin/, lib/ etc.
+          # We need to move its contents to cmdline-tools/latest/
+          if [ -d "cmdline-tools" ]; then
+            mv cmdline-tools/* .
+            rmdir cmdline-tools
+          fi
+          ls -la
 
       - name: Set Android environment
         run: |
