@@ -10,61 +10,71 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      # 3. Install system dependencies
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk wget \
-          build-essential autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev \
-          cmake libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk \
+            build-essential autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            cmake libffi-dev libssl-dev wget
 
-      - name: Install Android SDK + Build Tools
+      # 4. Download Android command line tools
+      - name: Download Android SDK command line tools
         run: |
           mkdir -p $HOME/android-sdk
           cd $HOME/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          rm cmdline-tools.zip
 
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip commandlinetools-linux-*.zip
-          rm commandlinetools-linux-*.zip
+      # 5. Setup Android SDK directory structure
+      - name: Setup Android SDK directory
+        run: |
+          cd $HOME/android-sdk
+          mkdir -p cmdline-tools
+          mv cmdline-tools-linux cmdline-tools/latest
 
-          # Reorganize cmdline-tools correctly
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
-
-          # Export to GitHub environment so other steps can use them
+      # 6. Set environment variables
+      - name: Set Android environment
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+        run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      - name: Accept Android Licenses
+      # 7. Accept licenses and install SDK components
+      - name: Install Android SDK components
         run: |
-          yes | sdkmanager --licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Install Platform Tools and Build Tools
-        run: |
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0"
-
+      # 8. Install Buildozer
       - name: Install Buildozer
         run: |
           pip install --upgrade pip
-          pip install buildozer cython
+          pip install cython buildozer
 
+      # 9. Build APK
       - name: Build APK
         run: |
           buildozer android debug
 
+      # 10. Upload APK as artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: offline-translator-apk
+          name: translator-apk
           path: bin/*.apk
