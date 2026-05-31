@@ -28,33 +28,33 @@ jobs:
           cd /tmp
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
           unzip -q cmdline.zip
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           rm cmdline.zip
-          ls -la $HOME/android-sdk/cmdline-tools/latest/
+          # Create expected structure: android-sdk/tools/bin/sdkmanager
+          mkdir -p $HOME/android-sdk/tools/bin
+          mv cmdline-tools/* $HOME/android-sdk/tools/
+          ls -la $HOME/android-sdk/tools/bin/
 
       - name: Set Android environment variables
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_PATH=$HOME/android-sdk" >> $GITHUB_ENV
 
       - name: Install SDK components
         run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          yes | $HOME/android-sdk/tools/bin/sdkmanager --licenses 2>/dev/null || true
+          $HOME/android-sdk/tools/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           ls -la $HOME/android-sdk/build-tools/
+
+      - name: Fix Buildozer SDK location
+        run: |
+          mkdir -p ~/.buildozer/android/platform
+          ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
+          ls -la ~/.buildozer/android/platform/
 
       - name: Install Buildozer
         run: |
           pip install --upgrade pip
           pip install cython buildozer
-
-      - name: Create buildozer Android SDK link
-        run: |
-          mkdir -p ~/.buildozer/android/platform
-          ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
-          ls -la ~/.buildozer/android/
 
       - name: Build APK
         run: |
