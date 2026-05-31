@@ -33,15 +33,22 @@ jobs:
 
           wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip commandlinetools-linux-*.zip
+          rm commandlinetools-linux-*.zip
 
+          # Reorganize cmdline-tools correctly
           mkdir -p cmdline-tools/latest
-          mv cmdline-tools/* cmdline-tools/latest/
+          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
 
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          # Export to GitHub environment so other steps can use them
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
+      - name: Accept Android Licenses
+        run: |
           yes | sdkmanager --licenses
 
+      - name: Install Platform Tools and Build Tools
+        run: |
           sdkmanager \
             "platform-tools" \
             "platforms;android-34" \
