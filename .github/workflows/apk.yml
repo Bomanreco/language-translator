@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build APK
 
 on:
   push:
@@ -6,97 +6,79 @@ on:
       - main
   workflow_dispatch:
 
-env:
-  ANDROID_API: 34
-  ANDROID_BUILD_TOOLS: 34.0.0
-  ANDROID_NDK: 25.2.9519653
-
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    - name: Install Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            zip unzip openjdk-17-jdk \
-            autoconf automake libtool \
-            pkg-config zlib1g-dev \
-            libncurses5-dev libncursesw5-dev \
-            cmake git wget curl \
-            build-essential ccache \
-            libffi-dev libssl-dev
+    - name: Install Linux Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          git zip unzip openjdk-17-jdk \
+          autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 \
+          cmake libffi-dev libssl-dev
 
-      - name: Install Android SDK
-        run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
+    - name: Install Android SDK
+      run: |
+        mkdir -p $HOME/android-sdk/cmdline-tools
 
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
 
-          unzip -q commandlinetools-linux-11076708_latest.zip
+        unzip commandlinetools-linux-11076708_latest.zip
 
-          mkdir -p $HOME/android-sdk/cmdline-tools/latest
+        mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
 
-          mv cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
+    - name: Set Android Environment
+      run: |
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+    - name: Accept SDK Licenses
+      run: |
+        yes | sdkmanager --licenses
 
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/build-tools/${ANDROID_BUILD_TOOLS}" >> $GITHUB_PATH
+    - name: Install SDK Packages
+      run: |
+        sdkmanager \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;33.0.2" \
+          "ndk;25.2.9519653"
 
-      - name: Install Android Packages
-        run: |
-          yes | sdkmanager --licenses
+    - name: Verify AIDL
+      run: |
+        find $ANDROID_HOME -name aidl
 
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-${ANDROID_API}" \
-            "build-tools;${ANDROID_BUILD_TOOLS}" \
-            "ndk;${ANDROID_NDK}"
+    - name: Install Buildozer
+      run: |
+        python -m pip install --upgrade pip
+        pip install cython buildozer
 
-      - name: Verify SDK Installation
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
+    - name: Build APK
+      run: |
+        buildozer android debug
 
-          find $ANDROID_HOME -name aidl
-
-          find $ANDROID_HOME -name aapt
-
-          find $ANDROID_HOME -name zipalign
-
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install buildozer cython==0.29.36
-
-      - name: Clean Previous Builds
-        run: |
-          rm -rf .buildozer
-          rm -rf bin
-
-      - name: Build APK
-        run: |
-          buildozer android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: LanguageTranslator-APK
-          path: bin/*.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: APK
+        path: bin/*.apk
