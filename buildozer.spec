@@ -112,7 +112,7 @@ fullscreen = 0
 #android.api = 34
 
 # (int) Minimum API your APK / AAB will support.
-#android.minapi = 21
+#android.minapi = 24
 
 # (int) Android SDK version to use
 #android.sdk = 20
@@ -141,7 +141,7 @@ fullscreen = 0
 # agreements. This is intended for automation only. If set to False,
 # the default, you will be shown the license when first running
 # buildozer.
-# android.accept_sdk_license = False
+# android.accept_sdk_license = True
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.kivy.android.PythonActivity
