@@ -68,6 +68,18 @@ jobs:
       run: |
         find $ANDROID_HOME -name aidl
 
+    - name: Check AIDL
+      run: |
+        AIDL=$(find $ANDROID_HOME -name aidl | head -n 1)
+       echo "AIDL FOUND AT: $AIDL"
+        chmod +x "$AIDL"
+          "$AIDL" --version || true
+
+    - name: Clean Buildozer Cache
+      run: |
+       rm -rf .buildozer
+        rm -rf ~/.buildozer
+
     - name: Install Buildozer
       run: |
         python -m pip install --upgrade pip
