@@ -2,59 +2,57 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y openjdk-17-jdk wget
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      - name: Download and setup Android SDK
-        run: |
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
-          unzip -q cmdline.zip
-          rm cmdline.zip
-          # Create expected structure: android-sdk/tools/bin/sdkmanager
-          mkdir -p $HOME/android-sdk/tools/bin
-          mv cmdline-tools/* $HOME/android-sdk/tools/
-          ls -la $HOME/android-sdk/tools/bin/
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Set Android environment variables
+      - name: Install Android SDK Components
         run: |
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          sdkmanager --install "platform-tools"
+          sdkmanager --install "platforms;android-34"
+          sdkmanager --install "build-tools;34.0.0"
+          sdkmanager --install "ndk;25.2.9519653"
+          yes | sdkmanager --licenses
 
-      - name: Install SDK components
+      - name: Install Linux Dependencies
         run: |
-          yes | $HOME/android-sdk/tools/bin/sdkmanager --licenses 2>/dev/null || true
-          $HOME/android-sdk/tools/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          ls -la $HOME/android-sdk/build-tools/
-
-      - name: Fix Buildozer SDK location
-        run: |
-          mkdir -p ~/.buildozer/android/platform
-          ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
-          ls -la ~/.buildozer/android/platform/
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            python3-pip autoconf automake libtool \
+            pkg-config zlib1g-dev libncurses5-dev \
+            libncursesw5-dev cmake libffi-dev \
+            libssl-dev
 
       - name: Install Buildozer
         run: |
-          pip install --upgrade pip
-          pip install cython buildozer
+          python -m pip install --upgrade pip
+          pip install buildozer cython==0.29.36
 
       - name: Build APK
         run: |
@@ -63,5 +61,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: translator-apk
+          name: LanguageTranslator-APK
           path: bin/*.apk
