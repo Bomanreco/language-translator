@@ -61,16 +61,32 @@ jobs:
 
       - name: Install Android SDK Components
         run: |
-          yes | sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          timeout 300 yes | sdkmanager --sdk_root=$HOME/android-sdk --licenses
           sdkmanager --sdk_root=$HOME/android-sdk \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0" \
             "ndk;25.2.9519653"
+          sdkmanager --list --sdk_root=$HOME/android-sdk
 
       - name: Verify AIDL
         run: |
           find $HOME/android-sdk -name aidl
+
+      - name: Create buildozer.spec
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+          fi
+
+      - name: Configure buildozer.spec
+        run: |
+          sed -i 's/p4a.bootstrap = sdl2/p4a.bootstrap = sdl2/g' buildozer.spec
+          sed -i 's/android.api = .*/android.api = 34/g' buildozer.spec
+          sed -i 's/android.minapi = .*/android.minapi = 21/g' buildozer.spec
+          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/g' buildozer.spec
+          sed -i 's|android.sdk = .*|android.sdk = '$HOME'/android-sdk|g' buildozer.spec
+          sed -i 's|android.ndk_path = .*|android.ndk_path = '$HOME'/android-sdk/ndk/25.2.9519653|g' buildozer.spec
 
       - name: Clean Build
         run: |
@@ -81,8 +97,9 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          P4A_DEBUG: 1
         run: |
-          buildozer -v android debug
+          buildozer -v android debug 2>&1 | head -200
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
