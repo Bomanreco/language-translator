@@ -78,31 +78,60 @@ jobs:
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
+          # Verify buildozer.spec was created
+          ls -la buildozer.spec
 
       - name: Configure buildozer.spec
         run: |
-          sed -i 's/p4a.bootstrap = sdl2/p4a.bootstrap = sdl2/g' buildozer.spec
-          sed -i 's/android.api = .*/android.api = 34/g' buildozer.spec
-          sed -i 's/android.minapi = .*/android.minapi = 21/g' buildozer.spec
-          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/g' buildozer.spec
-          sed -i 's|android.sdk = .*|android.sdk = '$HOME'/android-sdk|g' buildozer.spec
-          sed -i 's|android.ndk_path = .*|android.ndk_path = '$HOME'/android-sdk/ndk/25.2.9519653|g' buildozer.spec
+          # Set Android API versions and NDK
+          sed -i 's/android.api = .*/android.api = 34/' buildozer.spec
+          sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
+          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
+          # Set SDK and NDK paths
+          sed -i "s|android.sdk = .*|android.sdk = $HOME/android-sdk|" buildozer.spec
+          sed -i "s|android.ndk_path = .*|android.ndk_path = $HOME/android-sdk/ndk/25.2.9519653|" buildozer.spec
+          # Show relevant config
+          echo "\n=== Buildozer Configuration ==="
+          grep -E 'android\.(api|minapi|ndk|sdk|ndk_path)' buildozer.spec
 
       - name: Clean Build
         run: |
           rm -rf .buildozer
           rm -rf bin
+          echo "Cleaned build directories"
 
       - name: Build APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           P4A_DEBUG: 1
+          P4A_RELEASE_KEYSTORE: 1
         run: |
-          buildozer -v android debug 2>&1 | head -200
+          echo "Starting buildozer build..."
+          buildozer -v android debug
+          BUILD_STATUS=$?
+          echo "Build status: $BUILD_STATUS"
+          if [ $BUILD_STATUS -ne 0 ]; then
+            echo "Build failed!"
+            exit $BUILD_STATUS
+          fi
+
+      - name: Check for APK
+        run: |
+          echo "Checking for APK files..."
+          find . -name "*.apk" -type f
+          find . -name "*.apk" -type f | wc -l
+          echo "Contents of bin directory:"
+          ls -la bin/ 2>/dev/null || echo "bin directory not found"
+          echo "Contents of .buildozer/android/platform/build/dist:"
+          ls -la .buildozer/android/platform/build/dist/ 2>/dev/null || echo "dist directory not found"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: apk
-          path: bin/*.apk
+          path: |
+            bin/*.apk
+            .buildozer/android/platform/build/dist/*.apk
+          if-no-files-found: warn
