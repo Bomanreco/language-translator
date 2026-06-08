@@ -39,6 +39,7 @@ jobs:
           sudo apt-get install -y zlib1g-dev libncurses5-dev
           sudo apt-get install -y libncursesw5-dev cmake
           sudo apt-get install -y libffi-dev libssl-dev
+          sudo apt-get install -y gradle
 
       - name: Install Python packages
         run: |
@@ -61,13 +62,22 @@ jobs:
 
       - name: Install Android SDK Components
         run: |
-          timeout 300 yes | sdkmanager --sdk_root=$HOME/android-sdk --licenses
-          sdkmanager --sdk_root=$HOME/android-sdk \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "ndk;25.2.9519653"
-          sdkmanager --list --sdk_root=$HOME/android-sdk
+          mkdir -p ~/.android
+          echo "count=0" > ~/.android/repositories.cfg
+          
+          # Accept all licenses programmatically
+          echo -e "y\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\n" | sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          
+          # Install components
+          sdkmanager --sdk_root=$HOME/android-sdk "platform-tools"
+          sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-34"
+          sdkmanager --sdk_root=$HOME/android-sdk "build-tools;34.0.0"
+          sdkmanager --sdk_root=$HOME/android-sdk "ndk;25.2.9519653"
+          
+          # Verify installation
+          echo "\n=== Installed Components ==="
+          ls -la $HOME/android-sdk/build-tools/
+          ls -la $HOME/android-sdk/ndk/
 
       - name: Verify AIDL
         run: |
@@ -84,15 +94,23 @@ jobs:
       - name: Configure buildozer.spec
         run: |
           # Set Android API versions and NDK
-          sed -i 's/android.api = .*/android.api = 34/' buildozer.spec
-          sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
-          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
-          # Set SDK and NDK paths
-          sed -i "s|android.sdk = .*|android.sdk = $HOME/android-sdk|" buildozer.spec
-          sed -i "s|android.ndk_path = .*|android.ndk_path = $HOME/android-sdk/ndk/25.2.9519653|" buildozer.spec
+          sed -i 's/^android.api = .*/android.api = 34/' buildozer.spec
+          sed -i 's/^android.minapi = .*/android.minapi = 21/' buildozer.spec
+          sed -i 's/^android.ndk_version = .*/android.ndk_version = 25.2.9519653/' buildozer.spec
+          
+          # Accept SDK license
+          sed -i 's/^#android.accept_sdk_license = /android.accept_sdk_license = /' buildozer.spec
+          if ! grep -q '^android.accept_sdk_license' buildozer.spec; then
+            echo 'android.accept_sdk_license = True' >> buildozer.spec
+          fi
+          
+          # Set SDK and NDK paths explicitly
+          sed -i "s|^android.sdk = .*|android.sdk = $HOME/android-sdk|" buildozer.spec
+          sed -i "s|^android.ndk = .*|android.ndk = $HOME/android-sdk/ndk/25.2.9519653|" buildozer.spec
+          
           # Show relevant config
           echo "\n=== Buildozer Configuration ==="
-          grep -E 'android\.(api|minapi|ndk|sdk|ndk_path)' buildozer.spec
+          grep -E '^android\.(api|minapi|ndk_version|accept_sdk_license|sdk|ndk)' buildozer.spec || true
 
       - name: Clean Build
         run: |
@@ -104,10 +122,23 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK: ${{ env.ANDROID_SDK_ROOT }}
           P4A_DEBUG: 1
-          P4A_RELEASE_KEYSTORE: 1
+          P4A_RELEASE: 1
         run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           echo "Starting buildozer build..."
+          
+          # Verify build tools exist
+          if [ -d "$ANDROID_SDK_ROOT/build-tools/34.0.0" ]; then
+            echo "✓ Build-tools 34.0.0 found"
+          else
+            echo "✗ Build-tools 34.0.0 NOT found"
+            ls -la $ANDROID_SDK_ROOT/build-tools/ || echo "No build-tools directory"
+            exit 1
+          fi
+          
           buildozer -v android debug
           BUILD_STATUS=$?
           echo "Build status: $BUILD_STATUS"
