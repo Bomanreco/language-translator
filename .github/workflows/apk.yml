@@ -69,14 +69,62 @@ jobs:
           # Create SDK directory
           mkdir -p $HOME/android-sdk/cmdline-tools
           
-          # Download command-line tools
+          # Download command-line tools with retries
           echo "Downloading Android command-line tools..."
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
+          CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-latest.zip"
+          RETRY_COUNT=3
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $RETRY_COUNT); do
+            echo "Attempt $i of $RETRY_COUNT..."
+            if wget -q --show-progress "$CMDLINE_TOOLS_URL" -O /tmp/cmdline-tools.zip; then
+              echo "✓ Download successful"
+              break
+            else
+              if [ $i -lt $RETRY_COUNT ]; then
+                echo "✗ Download failed, retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+              else
+                echo "✗ Download failed after $RETRY_COUNT attempts"
+                echo "Trying alternative URL..."
+                # Try alternative URL
+                wget -q --show-progress "https://redirector.gvt1.com/edgedl/android/studio/command-line-tools/latest/commandlinetools-linux-11076708_latest.zip" -O /tmp/cmdline-tools.zip || {
+                  echo "Both URLs failed, trying one more alternative..."
+                  curl -L -o /tmp/cmdline-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-latest.zip" || exit 1
+                }
+              fi
+            fi
+          done
+          
+          # Verify download
+          if [ ! -f /tmp/cmdline-tools.zip ]; then
+            echo "ERROR: Failed to download command-line tools"
+            exit 1
+          fi
+          
+          FILE_SIZE=$(stat -f%z /tmp/cmdline-tools.zip 2>/dev/null || stat -c%s /tmp/cmdline-tools.zip 2>/dev/null)
+          echo "Downloaded file size: $FILE_SIZE bytes"
+          
+          if [ "$FILE_SIZE" -lt 100000000 ]; then
+            echo "WARNING: File size seems small, might be corrupted"
+          fi
           
           # Extract and organize
-          unzip -q /tmp/cmdline-tools.zip -d /tmp/
+          echo "Extracting command-line tools..."
+          unzip -q /tmp/cmdline-tools.zip -d /tmp/ || {
+            echo "ERROR: Failed to extract command-line tools"
+            exit 1
+          }
+          
           mkdir -p $HOME/android-sdk/cmdline-tools/latest
-          mv /tmp/cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
+          
+          # Handle both possible extraction patterns
+          if [ -d "/tmp/cmdline-tools" ]; then
+            mv /tmp/cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
+          elif [ -d "/tmp/bin" ]; then
+            mv /tmp/bin $HOME/android-sdk/cmdline-tools/latest/
+            mv /tmp/lib $HOME/android-sdk/cmdline-tools/latest/ 2>/dev/null || true
+          fi
           
           # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
@@ -92,41 +140,93 @@ jobs:
       - name: Accept Android SDK Licenses
         run: |
           echo "Accepting Android SDK licenses..."
-          # Use a more robust method to accept licenses
-          mkdir -p ~/.android
-          echo "y" | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses > /dev/null 2>&1 || true
+          SDKMANAGER="$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager"
           
-          # Use timeout with yes command as fallback
-          timeout 60 bash -c 'yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses' || true
+          # Check if sdkmanager exists
+          if [ ! -f "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager not found at $SDKMANAGER"
+            find $HOME/android-sdk -name sdkmanager -type f 2>/dev/null || echo "sdkmanager not found anywhere"
+            exit 1
+          fi
           
-          echo "License acceptance completed"
+          echo "✓ sdkmanager found at: $SDKMANAGER"
+          echo "Accepting licenses..."
+          
+          # Create licenses directory
+          mkdir -p $HOME/android-sdk/licenses
+          
+          # Accept all licenses by creating license files
+          for license in android-sdk-license android-sdk-preview-license android-googletv-license google-gms-license-agreement gpl-3.0-license moto-x30-us-user-agreement
+          do
+              echo -e "\n\n8933bad161af4d5e6a83d25da7426e87" > $HOME/android-sdk/licenses/$license
+          done
+          
+          echo "✓ License files created"
+          
+          # Also try programmatic acceptance
+          echo "Running sdkmanager with accept-licenses flag..."
+          yes 2>/dev/null | $SDKMANAGER --sdk_root=$HOME/android-sdk --licenses || true"
 
       - name: Install Android SDK Components
         run: |
           SDKMANAGER="$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager"
           SDK_ROOT="$HOME/android-sdk"
           
-          echo "Installing Android SDK components..."
+          echo "Installing Android SDK components with retry logic..."
           
-          # Install each component separately for better error reporting
-          echo "Installing platform-tools..."
-          $SDKMANAGER --sdk_root=$SDK_ROOT "platform-tools"
+          # Function to install component with retries
+          install_component() {
+            local component=$1
+            local max_attempts=3
+            local attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "[Attempt $attempt/$max_attempts] Installing $component..."
+              if $SDKMANAGER --sdk_root=$SDK_ROOT "$component" 2>&1; then
+                echo "<U+2713> Successfully installed: $component"
+                return 0
+              else
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "<U+2717> Installation failed, waiting 10 seconds before retry..."
+                  sleep 10
+                else
+                  echo "<U+2717> Failed to install $component after $max_attempts attempts"
+                  return 1
+                fi
+              fi
+              ((attempt++))
+            done
+          }
           
-          echo "Installing Android API ${{ env.ANDROID_API }}..."
-          $SDKMANAGER --sdk_root=$SDK_ROOT "platforms;android-${{ env.ANDROID_API }}"
+          # Install components with retry
+          install_component "platform-tools" || true
+          install_component "platforms;android-${{ env.ANDROID_API }}" || true
+          install_component "build-tools;34.0.0" || true
+          install_component "ndk;${{ env.ANDROID_NDK_VERSION }}" || true
           
-          echo "Installing build-tools 34.0.0..."
-          $SDKMANAGER --sdk_root=$SDK_ROOT "build-tools;34.0.0"
-          
-          echo "Installing NDK ${{ env.ANDROID_NDK_VERSION }}..."
-          $SDKMANAGER --sdk_root=$SDK_ROOT "ndk;${{ env.ANDROID_NDK_VERSION }}"
-          
+          echo ""
           echo "Verifying installation..."
           echo "=== Build Tools ==="
-          ls -la $SDK_ROOT/build-tools/
+          ls -la $SDK_ROOT/build-tools/ || echo "No build-tools found"
           
+          echo ""
           echo "=== NDK Versions ==="
-          ls -la $SDK_ROOT/ndk/
+          ls -la $SDK_ROOT/ndk/ || echo "No NDK found"
+          
+          # Verify critical components
+          echo ""
+          echo "Verification Results:"
+          if [ -d "$SDK_ROOT/build-tools/34.0.0" ]; then
+            echo "<U+2713> Build-tools 34.0.0 is installed"
+          else
+            echo "<U+2717> WARNING: Build-tools 34.0.0 not found"
+          fi
+          
+          if [ -d "$SDK_ROOT/ndk/${{ env.ANDROID_NDK_VERSION }}" ]; then
+            echo "<U+2713> NDK ${{ env.ANDROID_NDK_VERSION }} is installed"
+          else
+            echo "<U+2717> WARNING: NDK ${{ env.ANDROID_NDK_VERSION }} not found"
+          fi
 
       - name: Verify AIDL
         run: |
@@ -176,8 +276,52 @@ jobs:
             sed -i "s/^android.archs = .*/android.archs = ${{ env.BUILD_ARCH }}/" buildozer.spec
           fi
           
+          # Add network configuration for p4a
+          if ! grep -q "^p4a.source_dir" buildozer.spec; then
+            echo "p4a.source_dir =" >> buildozer.spec
+          fi
+          
+          echo ""
           echo "=== Updated buildozer.spec ==="
           grep -E "^android\.(api|minapi|ndk|accept_sdk_license|sdk_path|ndk_path|archs)" buildozer.spec || true
+          
+          echo ""
+          echo "Configuration complete"
+
+      - name: Configure Network and Build Environment
+        run: |
+          echo "Configuring network timeouts and build environment..."
+          
+          # Set Python network timeouts
+          export PYTHONHTTPSVERIFY=0
+          
+          # Configure pip to be more resilient
+          mkdir -p ~/.pip
+          cat > ~/.pip/pip.conf << 'EOF'
+          [global]
+          retries = 5
+          timeout = 120
+          index-url = https://pypi.org/simple/
+          EOF
+          
+          # Check network connectivity
+          echo "Network connectivity check:"
+          echo "  DNS: $(getent hosts google.com | awk '{print $1}')"
+          echo "  Ping google.com: $(timeout 5 ping -c 1 google.com >/dev/null 2>&1 && echo 'OK' || echo 'FAILED')"
+          
+          # Check if we can reach Android SDK servers
+          echo "  Android SDK server: $(timeout 5 curl -sI https://dl.google.com/android/repository/sys-img/android/source.properties 2>&1 | head -1 | grep -o '[0-9]\{3\}')"
+          
+          # Pre-create gradle cache to avoid network issues
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m
+          org.gradle.parallel=true
+          org.gradle.workers.max=4
+          org.gradle.caching=true
+          EOF
+          
+          echo "Environment configured"
 
       - name: Clean Previous Builds
         run: |
@@ -191,6 +335,7 @@ jobs:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           P4A_DEBUG: 1
           PYTHONUNBUFFERED: 1
+          PYTHONHTTPSVERIFY: 0
         run: |
           echo "=========================================="
           echo "Starting APK Build"
@@ -214,25 +359,42 @@ jobs:
             exit 1
           fi
           
-          echo "✓ All required components verified"
+          echo "OK: All required components verified"
           echo ""
           
-          # Run buildozer
+          # Run buildozer with error handling
           echo "Running: buildozer -v android debug"
-          buildozer -v android debug
+          buildozer -v android debug 2>&1 | tee buildozer.log
           
-          BUILD_EXIT_CODE=$?
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
           echo "=========================================="
           echo "Build Exit Code: $BUILD_EXIT_CODE"
           echo "=========================================="
           
           if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "❌ Build failed with exit code $BUILD_EXIT_CODE"
+            echo "ERROR: Build failed with exit code $BUILD_EXIT_CODE"
+            echo ""
+            echo "=== Last 50 lines of buildozer.log ==="
+            tail -50 buildozer.log
+            
+            # Try to identify the specific error
+            echo ""
+            echo "=== Error Analysis ==="
+            if grep -q "HTTP.*404" buildozer.log; then
+              echo "Found HTTP 404 error - checking which component failed..."
+              grep "HTTP.*404" buildozer.log | head -5
+            fi
+            
+            if grep -q "Connection.*refused\|Connection.*timed out\|Name.*resolution\|Network\|Temporary failure" buildozer.log; then
+              echo "Found network connectivity issues"
+              grep -i "connection\|network\|timeout" buildozer.log | head -5
+            fi
+            
             exit $BUILD_EXIT_CODE
           fi
           
-          echo "✓ Build completed successfully"
+          echo "OK: Build completed successfully"
 
       - name: Locate Generated APK
         if: always()
