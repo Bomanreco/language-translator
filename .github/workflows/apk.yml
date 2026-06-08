@@ -1,16 +1,15 @@
 name: Build Android APK
 
 on:
-  push:
-    branches:
-      - main
-      - master
- workflow_dispatch:
+push:
+branches:
+- main
+- master
+workflow_dispatch:
 
 jobs:
 build:
 runs-on: ubuntu-22.04
-
 
 env:
   ANDROIDAPI: "34"
@@ -56,20 +55,19 @@ steps:
 
       unzip -q cmdline-tools.zip
 
-      mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+      mkdir -p $HOME/android-sdk/cmdline-tools/latest
+      mv cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
 
-      echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
       echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+      echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
 
       echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
       echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-  - name: Accept Licenses
+  - name: Install Android SDK Components
     run: |
       yes | sdkmanager --sdk_root=$HOME/android-sdk --licenses
 
-  - name: Install SDK Components
-    run: |
       sdkmanager --sdk_root=$HOME/android-sdk \
         "platform-tools" \
         "platforms;android-34" \
@@ -80,17 +78,16 @@ steps:
     run: |
       find $HOME/android-sdk -name aidl
 
-  - name: Clean Buildozer
+  - name: Clean Build
     run: |
       rm -rf .buildozer
       rm -rf bin
 
   - name: Build APK
     env:
-      ANDROID_HOME: $HOME/android-sdk
-      ANDROID_SDK_ROOT: $HOME/android-sdk
+      ANDROID_HOME: ${{ env.ANDROID_HOME }}
+      ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
     run: |
-      buildozer android clean
       buildozer -v android debug
 
   - name: Upload APK
@@ -98,4 +95,4 @@ steps:
     with:
       name: apk
       path: bin/*.apk
-
+```
