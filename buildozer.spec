@@ -9,7 +9,7 @@
 title = Language Translator
 
 # (str) Package name
-package.name = Translator
+package.name = languagetranslator
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.mru.translator
@@ -42,7 +42,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy
+requirements = python3,kivy==2.1.0
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
