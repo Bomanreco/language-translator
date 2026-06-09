@@ -11,12 +11,6 @@ jobs:
   build:
     runs-on: ubuntu-22.04
 
-    env:
-      ANDROID_API: 34
-      ANDROID_MINAPI: 21
-      ANDROID_NDK_VERSION: 25.2.9519653
-      BUILD_ARCH: arm64-v8a,armeabi-v7a
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -52,14 +46,13 @@ jobs:
             libtinfo5 \
             cmake \
             libffi-dev \
-            libssl-dev \
-            gradle
+            libssl-dev
 
-      - name: Install Python Dependencies
+      - name: Install Python Build Tools
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install cython==0.29.36
-          pip install buildozer
+          pip install buildozer==1.5.0
           pip install python-for-android
 
       - name: Cache Buildozer Global Directory
@@ -70,162 +63,68 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Setup Android SDK and NDK
+      - name: Setup Android SDK
         run: |
-          # Use pre-installed Android SDK on Github Actions runner
-          echo "Setting up pre-installed Android SDK..."
           ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
-          
-          # Fix ownership to allow modifications without sudo
           sudo chown -R $USER:$USER $ANDROID_SDK_ROOT
-          
-          # Define paths and sdkmanager
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          
-          # Create and configure licenses directory with valid SHA-1 hashes
+
           mkdir -p $ANDROID_SDK_ROOT/licenses
-          echo -e "8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea5157d1a12731729b15b5e37" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
-          echo -e "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
-          echo -e "d56f5187479451eabf01fb78af6dfcb131a6481e" > $ANDROID_SDK_ROOT/licenses/google-gms-license-agreement
-          
-          # Programmatically accept all remaining licenses
-          echo "Accepting licenses..."
-          yes | $SDKMANAGER --licenses
-          
-          # Install required SDK components and NDK
-          echo "Installing SDK components and NDK..."
-          $SDKMANAGER --install \
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea5157d1a12731729b15b5e37\n" \
+            > $ANDROID_SDK_ROOT/licenses/android-sdk-license
+          printf "84831b9409646a918e30573bab4c9c91346d8abd\n" \
+            > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
+
+          yes | $SDKMANAGER --licenses 2>/dev/null || true
+
+          $SDKMANAGER \
             "platform-tools" \
-            "platforms;android-${{ env.ANDROID_API }}" \
+            "platforms;android-34" \
             "build-tools;34.0.0" \
-            "ndk;${{ env.ANDROID_NDK_VERSION }}"
-          
-          # Expose environment variables to subsequent steps
+            "ndk;25.2.9519653"
+
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
-          
-          echo "Android SDK and NDK setup complete."
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Verify Android Toolchain
+      - name: Patch buildozer.spec for CI
         run: |
-          echo "=== SDK Manager List ==="
-          sdkmanager --list_installed || echo "sdkmanager not in PATH"
-          echo "=== NDK Check ==="
-          ls -la $ANDROID_HOME/ndk/${{ env.ANDROID_NDK_VERSION }} || echo "NDK not found at expected path"
-          echo "=== AIDL Check ==="
-          find $ANDROID_HOME -name "aidl" -type f 2>/dev/null || echo "AIDL search completed"
+          sed -i "s|^#\?android\.api\s*=.*|android.api = 34|"               buildozer.spec
+          sed -i "s|^#\?android\.minapi\s*=.*|android.minapi = 21|"         buildozer.spec
+          sed -i "s|^#\?android\.ndk\s*=.*|android.ndk = 25.2.9519653|"     buildozer.spec
+          sed -i "s|^#\?android\.accept_sdk_license\s*=.*|android.accept_sdk_license = True|" buildozer.spec
+          sed -i "s|^#\?android\.sdk_path\s*=.*|android.sdk_path = $ANDROID_HOME|"   buildozer.spec
+          sed -i "s|^#\?android\.ndk_path\s*=.*|android.ndk_path = $ANDROID_NDK_HOME|" buildozer.spec
 
-      - name: Setup Buildozer Configuration
-        run: |
-          echo "Configuring buildozer.spec..."
-          
-          # Ensure buildozer.spec exists
-          if [ ! -f buildozer.spec ]; then
-            echo "buildozer.spec not found, creating default..."
-            buildozer init
-          fi
-          
-          # Update Android-specific settings with pre-installed paths
-          sed -i "s|^#\?android.api = .*|android.api = ${{ env.ANDROID_API }}|" buildozer.spec
-          sed -i "s|^#\?android.minapi = .*|android.minapi = ${{ env.ANDROID_MINAPI }}|" buildozer.spec
-          sed -i "s|^#\?android.ndk = .*|android.ndk = ${{ env.ANDROID_NDK_VERSION }}|" buildozer.spec
-          sed -i "s|^#\?android.accept_sdk_license = .*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\?android.sdk_path = .*|android.sdk_path = $ANDROID_HOME|" buildozer.spec
-          sed -i "s|^#\?android.ndk_path = .*|android.ndk_path = $ANDROID_HOME/ndk/${{ env.ANDROID_NDK_VERSION }}|" buildozer.spec
-          
-          # Ensure architectures are set
-          if ! grep -q "^android.archs" buildozer.spec; then
-            echo "android.archs = ${{ env.BUILD_ARCH }}" >> buildozer.spec
-          else
-            sed -i "s/^android.archs = .*/android.archs = ${{ env.BUILD_ARCH }}/" buildozer.spec
-          fi
-          
-          echo "=== Updated buildozer.spec ==="
-          grep -E "^android\.(api|minapi|ndk|accept_sdk_license|sdk_path|ndk_path|archs)" buildozer.spec || true
+          # Ensure archs line exists and is correct
+          grep -q "^android\.archs" buildozer.spec \
+            && sed -i "s|^android\.archs\s*=.*|android.archs = arm64-v8a, armeabi-v7a|" buildozer.spec \
+            || echo "android.archs = arm64-v8a, armeabi-v7a" >> buildozer.spec
 
-      - name: Configure Network and Build Environment
-        run: |
-          echo "Configuring network timeouts and build environment..."
-          
-          # Set Python network timeouts
-          export PYTHONHTTPSVERIFY=0
-          
-          # Configure pip to be more resilient
-          mkdir -p ~/.pip
-          cat > ~/.pip/pip.conf << 'EOF'
-          [global]
-          retries = 5
-          timeout = 120
-          index-url = https://pypi.org/simple/
-          EOF
-          
-          # Pre-create gradle cache to avoid network issues
-          mkdir -p ~/.gradle
-          cat > ~/.gradle/gradle.properties << 'EOF'
-          org.gradle.jvmargs=-Xmx2048m
-          org.gradle.parallel=true
-          org.gradle.workers.max=4
-          org.gradle.caching=true
-          EOF
+          echo "=== Patched spec (android lines) ==="
+          grep -E "^android\." buildozer.spec
 
-      - name: Clean Previous Builds
-        run: |
-          echo "Cleaning previous build artifacts..."
-          buildozer android clean || echo "Clean skipped"
-          rm -rf .buildozer/android/platform/build bin dist
-
-      - name: Build APK with Buildozer
+      - name: Build APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          P4A_DEBUG: 1
-          PYTHONUNBUFFERED: 1
-          PYTHONHTTPSVERIFY: 0
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
-          echo "=========================================="
-          echo "Starting APK Build"
-          echo "=========================================="
-          echo "Python version: $(python --version)"
-          echo "Java version: $(java -version 2>&1 | head -1)"
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-          echo "=========================================="
-          
-          # Run buildozer
-          buildozer -v android debug 2>&1 | tee buildozer.log
-          
-          BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          echo "=========================================="
-          echo "Build Exit Code: $BUILD_EXIT_CODE"
-          echo "=========================================="
-          
-          if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "ERROR: Build failed with exit code $BUILD_EXIT_CODE"
-            tail -50 buildozer.log
-            exit $BUILD_EXIT_CODE
+          echo "ANDROID_HOME : $ANDROID_HOME"
+          echo "ANDROID_NDK  : $ANDROID_NDK_HOME"
+          buildozer -v android debug 2>&1 | tee build.log
+          echo "Exit code: ${PIPESTATUS[0]}"
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "--- Last 100 lines of build.log ---"
+            tail -100 build.log
+            exit 1
           fi
 
-      - name: Locate Generated APK
+      - name: Locate APK
         if: always()
-        run: |
-          echo "=========================================="
-          echo "Searching for APK files"
-          echo "=========================================="
-          find bin/ -name "*.apk" -type f 2>/dev/null || echo "No APKs found in bin/"
+        run: find . -name "*.apk" 2>/dev/null || echo "No APK found"
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         if: success()
         with:
@@ -233,17 +132,3 @@ jobs:
           path: bin/*.apk
           if-no-files-found: error
           retention-days: 30
-
-      - name: Build Summary
-        if: always()
-        run: |
-          echo "=========================================="
-          echo "Build Summary"
-          echo "=========================================="
-          echo "Project: Language Translator"
-          echo "Build Type: Debug APK"
-          echo "Target API: ${{ env.ANDROID_API }}"
-          echo "Min API: ${{ env.ANDROID_MINAPI }}"
-          echo "NDK Version: ${{ env.ANDROID_NDK_VERSION }}"
-          echo "Architectures: ${{ env.BUILD_ARCH }}"
-          echo "=========================================="
