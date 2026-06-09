@@ -17,11 +17,11 @@ jobs:
       ANDROID_BUILD_TOOLS: 34.0.0
 
     steps:
-      # ── 1. Source ────────────────────────────────────────────────────────────
+      # ── 1. Source ─────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Toolchains ────────────────────────────────────────────────────────
+      # ── 2. Toolchains ──────────────────────────────────────────────────────
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # ── 3. System packages ───────────────────────────────────────────────────
+      # ── 3. System packages ─────────────────────────────────────────────────
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
@@ -41,18 +41,17 @@ jobs:
             build-essential git zip unzip wget curl \
             autoconf automake libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev \
-            libltdl-dev
+            libtinfo5 cmake libffi-dev libssl-dev libltdl-dev
 
-      # ── 4. Python build tools ────────────────────────────────────────────────
+      # ── 4. Python build tools ──────────────────────────────────────────────
       - name: Install Python build tools
         run: |
           pip install --upgrade pip setuptools wheel
           pip install cython==0.29.36
-          pip install buildozer==1.5.0
+          pip install buildozer
           pip install python-for-android
 
-      # ── 5. Cache ─────────────────────────────────────────────────────────────
+      # ── 5. Cache ───────────────────────────────────────────────────────────
       - name: Cache Buildozer global dir
         uses: actions/cache@v4
         with:
@@ -60,7 +59,7 @@ jobs:
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
           restore-keys: buildozer-${{ runner.os }}-
 
-      # ── 6. Android SDK / NDK ─────────────────────────────────────────────────
+      # ── 6. Android SDK / NDK ───────────────────────────────────────────────
       - name: Setup Android SDK and NDK
         run: |
           sudo chown -R "$USER:$USER" "$ANDROID_SDK_ROOT"
@@ -76,89 +75,99 @@ jobs:
             > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
 
-          # Install SDK components
+          # Install required SDK components
           "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-${ANDROID_API}" \
             "build-tools;${ANDROID_BUILD_TOOLS}" \
             "ndk;${ANDROID_NDK_VERSION}"
 
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"                            >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+          # ── KEY FIX: create legacy tools/bin symlinks that buildozer/p4a expects
+          # Buildozer looks for sdkmanager at sdk/tools/bin/sdkmanager (old path)
+          # Modern SDK puts it at sdk/cmdline-tools/latest/bin/sdkmanager
+          mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+                 "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
+                 "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
 
-      # ── 7. Patch spec for CI ─────────────────────────────────────────────────
+          # Verify symlink works
+          "$ANDROID_SDK_ROOT/tools/bin/sdkmanager" --version
+
+          # Export env vars for all subsequent steps
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"                               >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"  >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"                   >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/platform-tools"                             >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/tools/bin"                                  >> "$GITHUB_PATH"
+
+      # ── 7. Patch buildozer.spec for CI ─────────────────────────────────────
       - name: Patch buildozer.spec
         run: |
-          NDK_PATH="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          python3 - <<'PYEOF'
+          import re, os, sys
 
-          # Uncomment / set required Android keys
-          python3 - <<'PY'
-          import re, os
-
-          spec = open("buildozer.spec").read()
+          spec_path = "buildozer.spec"
+          spec = open(spec_path).read()
 
           def set_key(text, key, value):
-              # Replace commented or existing line
+              """Uncomment and set a buildozer spec key, or append if absent."""
               pattern = rf'^#?\s*{re.escape(key)}\s*=.*'
               replacement = f'{key} = {value}'
               new, n = re.subn(pattern, replacement, text, flags=re.MULTILINE)
               if n == 0:
-                  new = text + f'\n{replacement}\n'
+                  new = text.rstrip() + f'\n{replacement}\n'
               return new
 
-          ndk_path = os.environ["ANDROID_SDK_ROOT"] + "/ndk/" + os.environ["ANDROID_NDK_VERSION"]
-          sdk_path = os.environ["ANDROID_SDK_ROOT"]
+          sdk  = os.environ["ANDROID_SDK_ROOT"]
+          ndk  = f"{sdk}/ndk/{os.environ['ANDROID_NDK_VERSION']}"
 
           spec = set_key(spec, "android.api",                "34")
           spec = set_key(spec, "android.minapi",             "21")
           spec = set_key(spec, "android.ndk",                os.environ["ANDROID_NDK_VERSION"])
-          spec = set_key(spec, "android.ndk_path",           ndk_path)
-          spec = set_key(spec, "android.sdk_path",           sdk_path)
+          spec = set_key(spec, "android.ndk_path",           ndk)
+          spec = set_key(spec, "android.sdk_path",           sdk)
           spec = set_key(spec, "android.accept_sdk_license", "True")
           spec = set_key(spec, "android.archs",              "arm64-v8a, armeabi-v7a")
 
-          open("buildozer.spec", "w").write(spec)
-          print("Spec patched OK")
-          PY
+          open(spec_path, "w").write(spec)
+          print("buildozer.spec patched successfully.")
+          PYEOF
 
-          echo "=== Android keys after patch ==="
+          echo "=== Android keys in spec ==="
           grep -E "^android\." buildozer.spec
 
-      # ── 8. Build ─────────────────────────────────────────────────────────────
+      # ── 8. Build APK ───────────────────────────────────────────────────────
       - name: Build APK
         env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_HOME:     ${{ env.ANDROID_HOME }}
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
-          echo "=== Environment ==="
           echo "ANDROID_HOME     : $ANDROID_HOME"
           echo "ANDROID_NDK_HOME : $ANDROID_NDK_HOME"
+          echo "sdkmanager path  : $(which sdkmanager)"
           echo "Java             : $(java -version 2>&1 | head -1)"
           echo "Python           : $(python --version)"
           echo "Buildozer        : $(buildozer --version 2>&1)"
-          echo "==================="
 
           buildozer android debug 2>&1 | tee buildozer_build.log
-          STATUS=${PIPESTATUS[0]}
+          BUILD_RC=${PIPESTATUS[0]}
 
-          if [ "$STATUS" -ne 0 ]; then
-            echo ""
-            echo "╔══════════════════════════════════════╗"
-            echo "║  BUILD FAILED  (exit $STATUS)         ║"
-            echo "╚══════════════════════════════════════╝"
-            echo "--- Last 200 lines of build log ---"
+          if [ "$BUILD_RC" -ne 0 ]; then
+            echo "====== BUILD FAILED (exit $BUILD_RC) ======"
+            echo "--- Last 200 lines ---"
             tail -200 buildozer_build.log
-            exit "$STATUS"
+            exit "$BUILD_RC"
           fi
+          echo "====== BUILD SUCCEEDED ======"
 
-      # ── 9. Verify & upload ───────────────────────────────────────────────────
-      - name: Find APK
+      # ── 9. Locate & upload APK ─────────────────────────────────────────────
+      - name: Locate APK
         if: always()
         run: |
-          echo "=== APK files found ==="
-          find . -name "*.apk" 2>/dev/null | grep -v '.buildozer' || echo "None"
-          echo "=== bin/ contents ==="
+          find . -name "*.apk" ! -path "*/.buildozer/*" 2>/dev/null \
+            && echo "Found above" || echo "No APK found outside .buildozer"
           ls -lh bin/ 2>/dev/null || echo "bin/ does not exist"
 
       - name: Upload APK
