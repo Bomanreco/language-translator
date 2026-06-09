@@ -271,7 +271,7 @@ class HistoryPopup(Popup):
             lang_label = Label(text=f"English ➔ {item['lang'].title()}", bold=True, color=get_color_from_hex("#38BDF8"), font_size='12sp', size_hint_y=None, height=15, halign='left')
             lang_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
-            src_label = Label(text=f"In: {item['source']}", color=get_color_from_hex("#94A3B8"), font_size='13sp', size_hint_y=None, height=20, halign='left', short_overflow=True)
+            src_label = Label(text=f"In: {item['source']}", color=get_color_from_hex("#94A3B8"), font_size='13sp', size_hint_y=None, height=20, halign='left')
             src_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
             tgt_label = Label(text=f"Out: {item['target']}", color=get_color_from_hex("#F1F5F9"), font_size='14sp', size_hint_y=None, height=25, halign='left', bold=True)
