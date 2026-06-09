@@ -30,23 +30,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            build-essential \
-            git \
-            zip \
-            unzip \
-            wget \
-            curl \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            libtinfo5 \
-            cmake \
-            libffi-dev \
-            libssl-dev
+            build-essential git zip unzip wget curl \
+            autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev
 
       - name: Install Python Build Tools
         run: |
@@ -55,7 +42,7 @@ jobs:
           pip install buildozer==1.5.0
           pip install python-for-android
 
-      - name: Cache Buildozer Global Directory
+      - name: Cache Buildozer Directory
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
@@ -63,68 +50,83 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK and NDK
         run: |
           ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
-          sudo chown -R $USER:$USER $ANDROID_SDK_ROOT
+          sudo chown -R $USER:$USER "$ANDROID_SDK_ROOT"
+
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 
-          mkdir -p $ANDROID_SDK_ROOT/licenses
+          # Accept licenses
+          mkdir -p "$ANDROID_SDK_ROOT/licenses"
           printf "8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea5157d1a12731729b15b5e37\n" \
-            > $ANDROID_SDK_ROOT/licenses/android-sdk-license
+            > "$ANDROID_SDK_ROOT/licenses/android-sdk-license"
           printf "84831b9409646a918e30573bab4c9c91346d8abd\n" \
-            > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
+            > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
+          yes | "$SDKMANAGER" --licenses 2>/dev/null || true
 
-          yes | $SDKMANAGER --licenses 2>/dev/null || true
-
-          $SDKMANAGER \
+          # Install required components
+          "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0" \
             "ndk;25.2.9519653"
 
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          # Export for all subsequent steps
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"                          >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"                      >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653"     >> $GITHUB_ENV
 
       - name: Patch buildozer.spec for CI
         run: |
-          sed -i "s|^#\?android\.api\s*=.*|android.api = 34|"               buildozer.spec
-          sed -i "s|^#\?android\.minapi\s*=.*|android.minapi = 21|"         buildozer.spec
-          sed -i "s|^#\?android\.ndk\s*=.*|android.ndk = 25.2.9519653|"     buildozer.spec
+          sed -i "s|^#\?android\.api\s*=.*|android.api = 34|"                          buildozer.spec
+          sed -i "s|^#\?android\.minapi\s*=.*|android.minapi = 21|"                    buildozer.spec
+          sed -i "s|^#\?android\.ndk\s*=.*|android.ndk = 25.2.9519653|"                buildozer.spec
           sed -i "s|^#\?android\.accept_sdk_license\s*=.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\?android\.sdk_path\s*=.*|android.sdk_path = $ANDROID_HOME|"   buildozer.spec
+          sed -i "s|^#\?android\.sdk_path\s*=.*|android.sdk_path = $ANDROID_HOME|"    buildozer.spec
           sed -i "s|^#\?android\.ndk_path\s*=.*|android.ndk_path = $ANDROID_NDK_HOME|" buildozer.spec
 
-          # Ensure archs line exists and is correct
-          grep -q "^android\.archs" buildozer.spec \
-            && sed -i "s|^android\.archs\s*=.*|android.archs = arm64-v8a, armeabi-v7a|" buildozer.spec \
-            || echo "android.archs = arm64-v8a, armeabi-v7a" >> buildozer.spec
-
-          echo "=== Patched spec (android lines) ==="
-          grep -E "^android\." buildozer.spec
-
-      - name: Build APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
-        run: |
-          echo "ANDROID_HOME : $ANDROID_HOME"
-          echo "ANDROID_NDK  : $ANDROID_NDK_HOME"
-          buildozer -v android debug 2>&1 | tee build.log
-          echo "Exit code: ${PIPESTATUS[0]}"
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "--- Last 100 lines of build.log ---"
-            tail -100 build.log
-            exit 1
+          if grep -q "^android\.archs" buildozer.spec; then
+            sed -i "s|^android\.archs\s*=.*|android.archs = arm64-v8a, armeabi-v7a|"  buildozer.spec
+          else
+            echo "android.archs = arm64-v8a, armeabi-v7a"                             >> buildozer.spec
           fi
 
-      - name: Locate APK
-        if: always()
-        run: find . -name "*.apk" 2>/dev/null || echo "No APK found"
+          echo "=== Android lines in spec ==="
+          grep -E "^android\." buildozer.spec
 
-      - name: Upload APK
+      - name: Build APK with Buildozer
+        run: |
+          echo "ANDROID_HOME     : $ANDROID_HOME"
+          echo "ANDROID_NDK_HOME : $ANDROID_NDK_HOME"
+          echo "Buildozer version: $(buildozer version 2>&1 || true)"
+
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
+          BUILD_RC=$?
+
+          if [ $BUILD_RC -ne 0 ]; then
+            echo ""
+            echo "========== BUILD FAILED (exit $BUILD_RC) =========="
+            echo "--- Last 150 lines of build.log ---"
+            tail -150 build.log
+            exit $BUILD_RC
+          fi
+
+          echo "Build succeeded."
+
+      - name: Show APK location
+        if: always()
+        run: |
+          echo "=== Searching for APK files ==="
+          find . -name "*.apk" -not -path "*/.buildozer/*" 2>/dev/null \
+            && echo "Found above" \
+            || echo "No APK found outside .buildozer"
+
+          echo "=== Contents of bin/ ==="
+          ls -la bin/ 2>/dev/null || echo "bin/ directory does not exist"
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
