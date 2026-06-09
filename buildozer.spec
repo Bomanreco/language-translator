@@ -12,13 +12,13 @@ title = Language Translator
 package.name = Translator
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.Mru Translator
+package.domain = org.mru.translator
 
 # (str) Source code where the main.py live
 source.dir = .
 
 # (list) Source files to include (leave empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,json
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
