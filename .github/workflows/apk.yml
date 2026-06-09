@@ -9,128 +9,33 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    name: Build APK
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            build-essential git zip unzip wget curl \
-            autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev
-
-      - name: Install Python Build Tools
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          pip install cython==0.29.36
-          pip install buildozer==1.5.0
-          pip install python-for-android
-
-      - name: Cache Buildozer Directory
+      - name: Cache Buildozer Global Directory
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            ${{ runner.os }}-buildozer-
+            buildozer-global-
 
-      - name: Setup Android SDK and NDK
-        run: |
-          ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
-          sudo chown -R $USER:$USER "$ANDROID_SDK_ROOT"
-
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-
-          # Accept licenses
-          mkdir -p "$ANDROID_SDK_ROOT/licenses"
-          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea5157d1a12731729b15b5e37\n" \
-            > "$ANDROID_SDK_ROOT/licenses/android-sdk-license"
-          printf "84831b9409646a918e30573bab4c9c91346d8abd\n" \
-            > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
-          yes | "$SDKMANAGER" --licenses 2>/dev/null || true
-
-          # Install required components
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "ndk;25.2.9519653"
-
-          # Export for all subsequent steps
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"                          >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"                      >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653"     >> $GITHUB_ENV
-
-      - name: Patch buildozer.spec for CI
-        run: |
-          sed -i "s|^#\?android\.api\s*=.*|android.api = 34|"                          buildozer.spec
-          sed -i "s|^#\?android\.minapi\s*=.*|android.minapi = 21|"                    buildozer.spec
-          sed -i "s|^#\?android\.ndk\s*=.*|android.ndk = 25.2.9519653|"                buildozer.spec
-          sed -i "s|^#\?android\.accept_sdk_license\s*=.*|android.accept_sdk_license = True|" buildozer.spec
-          sed -i "s|^#\?android\.sdk_path\s*=.*|android.sdk_path = $ANDROID_HOME|"    buildozer.spec
-          sed -i "s|^#\?android\.ndk_path\s*=.*|android.ndk_path = $ANDROID_NDK_HOME|" buildozer.spec
-
-          if grep -q "^android\.archs" buildozer.spec; then
-            sed -i "s|^android\.archs\s*=.*|android.archs = arm64-v8a, armeabi-v7a|"  buildozer.spec
-          else
-            echo "android.archs = arm64-v8a, armeabi-v7a"                             >> buildozer.spec
-          fi
-
-          echo "=== Android lines in spec ==="
-          grep -E "^android\." buildozer.spec
-
-      - name: Build APK with Buildozer
-        run: |
-          echo "ANDROID_HOME     : $ANDROID_HOME"
-          echo "ANDROID_NDK_HOME : $ANDROID_NDK_HOME"
-          echo "Buildozer version: $(buildozer version 2>&1 || true)"
-
-          set -o pipefail
-          buildozer -v android debug 2>&1 | tee build.log
-          BUILD_RC=$?
-
-          if [ $BUILD_RC -ne 0 ]; then
-            echo ""
-            echo "========== BUILD FAILED (exit $BUILD_RC) =========="
-            echo "--- Last 150 lines of build.log ---"
-            tail -150 build.log
-            exit $BUILD_RC
-          fi
-
-          echo "Build succeeded."
-
-      - name: Show APK location
-        if: always()
-        run: |
-          echo "=== Searching for APK files ==="
-          find . -name "*.apk" -not -path "*/.buildozer/*" 2>/dev/null \
-            && echo "Found above" \
-            || echo "No APK found outside .buildozer"
-
-          echo "=== Contents of bin/ ==="
-          ls -la bin/ 2>/dev/null || echo "bin/ directory does not exist"
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          workdir: .
+          buildozer_version: stable
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: Language-Translator-APK
-          path: bin/*.apk
+          path: ${{ steps.buildozer.outputs.filename }}
           if-no-files-found: error
           retention-days: 30
