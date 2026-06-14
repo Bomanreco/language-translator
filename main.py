@@ -210,7 +210,7 @@ class AboutPopup(Popup):
         
         create_section(
             "👨‍💻 DEVELOPERS",
-            "Lead Developer:\nYour Name Here\n\nSupervisor:\nLecturer Name\n\nInstitution:\nYour University"
+            " Developers:\nSANYU PATIENCE\nNALULE SHIRAH MUTEEBI\nkAYAGA CATHERINE\n\nSupervisor:\nDR ALI NAGIB\n\nInstitution:\nMUTEESA I ROYAL UNIVERSITY"
         )
         
         scroll.add_widget(content)
