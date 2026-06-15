@@ -12,10 +12,13 @@ from kivy.uix.spinner import Spinner, SpinnerOption
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.core.clipboard import Clipboard
-from kivy.graphics import Color, RoundedRectangle
+from kivy.graphics import Color, RoundedRectangle, Line, Ellipse
 from kivy.utils import get_color_from_hex, platform
 from kivy.clock import mainthread
 from kivy.metrics import dp
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.image import Image
+from kivy.uix.widget import Widget
 
 import json
 import os
@@ -65,6 +68,94 @@ class RoundedButton(Button):
             
         self.bind(pos=self.update_rect, size=self.update_rect)
         
+    def update_rect(self, *args):
+        self.rect.pos = self.pos
+        self.rect.size = self.size
+        
+    def on_state(self, instance, value):
+        if value == 'down':
+            self.paint_color.rgba = self.pressed_color
+        else:
+            self.paint_color.rgba = self.bg_color
+
+
+def check_icon(filename):
+    base_dir = os.path.dirname(__file__)
+    path = os.path.join(base_dir, "data", filename)
+    if os.path.exists(path):
+        return path
+    if os.path.exists(os.path.join("data", filename)):
+        return os.path.join("data", filename)
+    return None
+
+
+class ClockIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(ellipse=(self.x + dp(2), self.y + dp(2), self.width - dp(4), self.height - dp(4)), width=dp(1.5))
+            Line(points=[self.x + self.width/2, self.y + self.height/2, self.x + self.width/2, self.y + self.height/2 + dp(6)], width=dp(1.5))
+            Line(points=[self.x + self.width/2, self.y + self.height/2, self.x + self.width/2 + dp(4), self.y + self.height/2], width=dp(1.5))
+
+
+class InfoIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(ellipse=(self.x + dp(2), self.y + dp(2), self.width - dp(4), self.height - dp(4)), width=dp(1.5))
+            Ellipse(pos=(self.x + self.width/2 - dp(1.5), self.y + self.height/2 + dp(3)), size=(dp(3), dp(3)))
+            Line(points=[self.x + self.width/2, self.y + self.height/2 + dp(1), self.x + self.width/2, self.y + self.height/2 - dp(4)], width=dp(1.5))
+
+
+class RoundedIconButton(ButtonBehavior, BoxLayout):
+    def __init__(self, text="", icon_source=None, bg_color_hex="#6366F1", radius=8, icon_size=dp(20), font_size='15sp', text_color_hex="#FFFFFF", **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'horizontal'
+        self.padding = [dp(12), dp(8)]
+        self.spacing = dp(8)
+        self.radius = dp(radius)
+        
+        self.bg_color = get_color_from_hex(bg_color_hex)
+        self.pressed_color = [c * 0.8 for c in self.bg_color[:3]] + [self.bg_color[3]]
+        
+        with self.canvas.before:
+            self.paint_color = Color(*self.bg_color)
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
+            
+        self.bind(pos=self.update_rect, size=self.update_rect)
+        
+        if icon_source:
+            if icon_source == "history.png":
+                self.icon_widget = ClockIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+                self.add_widget(self.icon_widget)
+            elif icon_source == "about.png":
+                self.icon_widget = InfoIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+                self.add_widget(self.icon_widget)
+            else:
+                icon_path = check_icon(icon_source)
+                if icon_path:
+                    self.icon_widget = Image(source=icon_path, size_hint=(None, None), size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+                    self.add_widget(self.icon_widget)
+            
+        if text:
+            self.label = Label(text=text, bold=True, color=get_color_from_hex(text_color_hex), font_size=font_size, size_hint_x=1, halign='center', valign='middle')
+            self.label.bind(size=self.label.setter('text_size'))
+            self.add_widget(self.label)
+
     def update_rect(self, *args):
         self.rect.pos = self.pos
         self.rect.size = self.size
@@ -424,59 +515,74 @@ class TranslatorScreen(Screen):
             
         header.bind(pos=self.update_header_bg, size=self.update_header_bg)
             
-        title = Label(
-            text="🌐 Offline Translator",
-            bold=True,
-            font_size='20sp',
-            color=get_color_from_hex("#F8FAFC"),
-            halign='left',
-            valign='middle'
-        )
-        title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
+        # Title with Logo
+        title_layout = BoxLayout(orientation='horizontal', spacing=dp(8), size_hint_x=0.5)
+        logo_path = check_icon("logo.png")
+        if logo_path:
+            title_logo = Image(source=logo_path, size_hint=(None, None), size=(dp(30), dp(30)), pos_hint={'center_y': 0.5})
+            title_layout.add_widget(title_logo)
+        title_lbl = Label(text="Offline Translator", bold=True, font_size='18sp', color=get_color_from_hex("#F8FAFC"), valign='middle')
+        title_lbl.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
+        title_layout.add_widget(title_lbl)
         
-        hist_btn = RoundedButton(text="History", bg_color_hex="#0EA5E9", size_hint_x=None, width=dp(85))
+        hist_btn = RoundedIconButton(text="History", icon_source="history.png", bg_color_hex="#0EA5E9", size_hint_x=None, width=dp(100))
         hist_btn.bind(on_press=self.show_history)
         
-        about_btn = RoundedButton(text="About", bg_color_hex="#475569", size_hint_x=None, width=dp(75))
+        about_btn = RoundedIconButton(text="About", icon_source="about.png", bg_color_hex="#475569", size_hint_x=None, width=dp(90))
         about_btn.bind(on_press=self.show_about)
         
-        header.add_widget(title)
+        header.add_widget(title_layout)
         header.add_widget(hist_btn)
         header.add_widget(about_btn)
         root_layout.add_widget(header)
         
-        # 3. SCROLLABLE CONTAINER (Wraps the rest of the contents to prevent mixing on mobile)
+        # 3. SCROLLABLE CONTAINER
         scroll = ScrollView()
         scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(14), padding=[dp(15), dp(12), dp(15), dp(15)])
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
         
-        # 4. LANGUAGE SELECTOR CARD
+        # 4. LANGUAGE SELECTOR CARD (Bidirectional spinners + swap button)
         lang_card = StyledCard(orientation='horizontal', padding=[dp(12), dp(10)], spacing=dp(10), size_hint_y=None, height=dp(60), bg_color_hex="#1E293B")
-        lang_label = Label(text="Translate English to:", bold=True, font_size='15sp', color=get_color_from_hex("#94A3B8"), size_hint_x=0.45, halign='left')
-        lang_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
         
-        self.lang_spinner = StyledSpinner(
-            text="Spanish",
-            values=("Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
-            size_hint_x=0.55
+        self.src_lang_spinner = StyledSpinner(
+            text="English",
+            values=("English", "Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
+            size_hint_x=0.42
         )
-        self.lang_spinner.bind(text=self.on_lang_change)
+        self.src_lang_spinner.bind(text=self.on_lang_change)
         
-        lang_card.add_widget(lang_label)
-        lang_card.add_widget(self.lang_spinner)
+        swap_btn = RoundedIconButton(
+            icon_source="swap.png",
+            bg_color_hex="#475569",
+            size_hint_x=None,
+            width=dp(45),
+            radius=22.5
+        )
+        swap_btn.bind(on_press=self.swap_languages)
+        
+        self.tgt_lang_spinner = StyledSpinner(
+            text="Spanish",
+            values=("English", "Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
+            size_hint_x=0.42
+        )
+        self.tgt_lang_spinner.bind(text=self.on_lang_change)
+        
+        lang_card.add_widget(self.src_lang_spinner)
+        lang_card.add_widget(swap_btn)
+        lang_card.add_widget(self.tgt_lang_spinner)
         scroll_content.add_widget(lang_card)
         
         # 5. INPUT CARD
         input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(200), bg_color_hex="#1E293B")
         
         input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
-        input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
-        input_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
+        self.input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
+        self.input_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        mic_btn = RoundedButton(text="🎙 Record", bg_color_hex="#EF4444", size_hint_x=None, width=dp(95))
+        mic_btn = RoundedIconButton(text="Record", icon_source="mic.png", bg_color_hex="#EF4444", size_hint_x=None, width=dp(105))
         mic_btn.bind(on_press=self.start_voice_input)
         
-        input_header.add_widget(input_title)
+        input_header.add_widget(self.input_title)
         input_header.add_widget(mic_btn)
         input_card.add_widget(input_header)
         
@@ -493,10 +599,10 @@ class TranslatorScreen(Screen):
         translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1")
         translate_btn.bind(on_press=self.translate)
         
-        self.copy_btn = RoundedButton(text="Copy", bg_color_hex="#10B981", size_hint_x=0.3)
+        self.copy_btn = RoundedIconButton(text="Copy", icon_source="copy.png", bg_color_hex="#10B981", size_hint_x=0.35)
         self.copy_btn.bind(on_press=self.copy_to_clipboard)
         
-        clear_btn = RoundedButton(text="Clear", bg_color_hex="#475569", size_hint_x=0.3)
+        clear_btn = RoundedIconButton(text="Clear", icon_source="clear.png", bg_color_hex="#475569", size_hint_x=0.35)
         clear_btn.bind(on_press=self.clear)
         
         actions_row.add_widget(translate_btn)
@@ -504,14 +610,14 @@ class TranslatorScreen(Screen):
         actions_row.add_widget(clear_btn)
         scroll_content.add_widget(actions_row)
         
-        # 7. OUTPUT CARD
-        output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(200), bg_color_hex="#1E293B")
+        # 7. OUTPUT CARD (Dual text visibility)
+        output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(220), bg_color_hex="#1E293B")
         
         output_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
         output_title = Label(text="Translation:", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
         output_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        self.speak_btn = RoundedButton(text="🔊 Speak", bg_color_hex="#10B981", size_hint_x=None, width=dp(90))
+        self.speak_btn = RoundedIconButton(text="Speak", icon_source="speak.png", bg_color_hex="#10B981", size_hint_x=None, width=dp(100))
         self.speak_btn.bind(on_press=self.speak_translation)
         
         output_header.add_widget(output_title)
@@ -519,18 +625,36 @@ class TranslatorScreen(Screen):
         output_card.add_widget(output_header)
         
         output_scroll = ScrollView()
+        output_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8))
+        output_layout.bind(minimum_height=output_layout.setter('height'))
+        
+        self.output_src_label = Label(
+            text="",
+            color=get_color_from_hex("#94A3B8"),
+            font_size='14sp',
+            valign='top',
+            halign='left',
+            size_hint_y=None,
+            italic=True
+        )
+        self.output_src_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
+        self.output_src_label.bind(texture_size=lambda s, t: s.setter('height')(s, t[1]))
+        
         self.output_label = Label(
             text="Translation will appear here...",
-            color=get_color_from_hex("#CBD5E1"),
+            color=get_color_from_hex("#F8FAFC"),
             font_size='16sp',
             valign='top',
             halign='left',
-            size_hint_y=None
+            size_hint_y=None,
+            bold=True
         )
         self.output_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
         self.output_label.bind(texture_size=lambda s, t: s.setter('height')(s, t[1]))
         
-        output_scroll.add_widget(self.output_label)
+        output_layout.add_widget(self.output_src_label)
+        output_layout.add_widget(self.output_label)
+        output_scroll.add_widget(output_layout)
         output_card.add_widget(output_scroll)
         scroll_content.add_widget(output_card)
         
@@ -552,6 +676,21 @@ class TranslatorScreen(Screen):
         HistoryPopup(app.history, app.clear_history).open()
         
     def on_lang_change(self, spinner, text):
+        self.update_input_card_title()
+        if self.input_text.text.strip():
+            self.translate(None)
+            
+    def update_input_card_title(self):
+        src_lang = self.src_lang_spinner.text
+        self.input_title.text = f"Input Text ({src_lang}):"
+        self.input_text.hint_text = f"Type {src_lang} text here or use voice record..."
+            
+    def swap_languages(self, instance):
+        src = self.src_lang_spinner.text
+        tgt = self.tgt_lang_spinner.text
+        self.src_lang_spinner.text = tgt
+        self.tgt_lang_spinner.text = src
+        self.update_input_card_title()
         if self.input_text.text.strip():
             self.translate(None)
             
@@ -560,31 +699,39 @@ class TranslatorScreen(Screen):
         if not text:
             self.output_label.markup = True
             self.output_label.text = "[color=#EF4444]Please enter text to translate.[/color]"
+            self.output_src_label.text = ""
             return
             
-        target_lang = self.lang_spinner.text
+        src_lang = self.src_lang_spinner.text
+        target_lang = self.tgt_lang_spinner.text
         app = App.get_running_app()
         
-        result = app.perform_translation(text, target_lang)
+        result = app.perform_translation(text, src_lang, target_lang)
         self.output_label.markup = False
         self.output_label.text = result
+        self.output_src_label.text = f"{src_lang}: {text}"
         
-        app.add_history(text, target_lang, result)
+        app.add_history(text, src_lang, target_lang, result)
         
     def clear(self, instance):
         self.input_text.text = ""
         self.output_label.text = "Translation will appear here..."
+        self.output_src_label.text = ""
         
     def copy_to_clipboard(self, instance):
         text = self.output_label.text
         if text and text != "Translation will appear here..." and not text.startswith("[color="):
             Clipboard.copy(text)
-            self.copy_btn.text = "Copied!"
+            
+            old_text = self.copy_btn.label.text if hasattr(self.copy_btn, 'label') else self.copy_btn.text
+            if hasattr(self.copy_btn, 'label'):
+                self.copy_btn.label.text = "Copied!"
             self.copy_btn.bg_color = get_color_from_hex("#059669")
             self.copy_btn.paint_color.rgba = self.copy_btn.bg_color
             
             def reset_btn(dt):
-                self.copy_btn.text = "Copy"
+                if hasattr(self.copy_btn, 'label'):
+                    self.copy_btn.label.text = old_text
                 self.copy_btn.bg_color = get_color_from_hex("#10B981")
                 self.copy_btn.paint_color.rgba = self.copy_btn.bg_color
                 
@@ -618,10 +765,23 @@ class TranslatorScreen(Screen):
 
     def _do_start_voice_input(self):
         try:
+            src_lang = self.src_lang_spinner.text.lower()
+            lang_codes = {
+                "english": "en-US",
+                "spanish": "es-ES",
+                "french": "fr-FR",
+                "german": "de-DE",
+                "italian": "it-IT",
+                "portuguese": "pt-PT",
+                "swahili": "sw-KE",
+                "luganda": "lg-UG"
+            }
+            lang_code = lang_codes.get(src_lang, "en-US")
+            
             intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now in English...")
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang_code)
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, f"Speak now in {self.src_lang_spinner.text}...")
             PythonActivity.mActivity.startActivityForResult(intent, self.VOICE_INPUT_REQUEST_CODE)
         except Exception as e:
             self.show_info_popup("Voice Input Error", f"Failed to start speech recognizer:\n{str(e)}")
@@ -653,8 +813,9 @@ class TranslatorScreen(Screen):
             self.show_info_popup("Voice Output", "No translation available to speak.")
             return
 
-        target_lang = self.lang_spinner.text.lower()
+        target_lang = self.tgt_lang_spinner.text.lower()
         lang_codes = {
+            "english": "en",
             "spanish": "es",
             "french": "fr",
             "german": "de",
@@ -675,14 +836,15 @@ class TranslatorScreen(Screen):
                 self.show_info_popup("Voice Output Error", f"Failed to run TTS engine:\n{str(e)}")
         else:
             # Desktop Simulation mode
-            # Temporarily rename button to show action
-            old_text = self.speak_btn.text
-            self.speak_btn.text = "🔊 Speaking..."
+            old_text = self.speak_btn.label.text if hasattr(self.speak_btn, 'label') else self.speak_btn.text
+            if hasattr(self.speak_btn, 'label'):
+                self.speak_btn.label.text = "Speaking..."
             self.speak_btn.bg_color = get_color_from_hex("#059669")
             self.speak_btn.paint_color.rgba = self.speak_btn.bg_color
 
             def reset_speak_btn(dt):
-                self.speak_btn.text = old_text
+                if hasattr(self.speak_btn, 'label'):
+                    self.speak_btn.label.text = old_text
                 self.speak_btn.bg_color = get_color_from_hex("#10B981")
                 self.speak_btn.paint_color.rgba = self.speak_btn.bg_color
 
@@ -992,52 +1154,89 @@ class TranslatorApp(App):
         except Exception as e:
             print(f"Error removing history file: {e}")
                 
-    def add_history(self, source, lang, target):
-        if self.history and self.history[0]["source"] == source and self.history[0]["lang"] == lang and self.history[0]["target"] == target:
+    def add_history(self, source, src_lang, tgt_lang, target):
+        if self.history and self.history[0]["source"] == source and self.history[0].get("src_lang", "English") == src_lang and self.history[0].get("lang", "Spanish") == tgt_lang and self.history[0]["target"] == target:
             return
             
         self.history.insert(0, {
             "source": source,
-            "lang": lang.lower(),
+            "src_lang": src_lang,
+            "lang": tgt_lang.lower(),
             "target": target
         })
         if len(self.history) > 50:
             self.history = self.history[:50]
         self.save_history()
 
-    def perform_translation(self, text, target_lang):
+    def get_reverse_translation_dict(self, lang):
+        lang = lang.lower()
+        if not hasattr(self, '_reverse_translations'):
+            self._reverse_translations = {}
+            
+        if lang in self._reverse_translations:
+            return self._reverse_translations[lang]
+            
+        reverse_dict = {}
+        if lang in self.translations:
+            for eng_phrase, lang_phrase in self.translations[lang].items():
+                parts = [p.strip().lower() for p in re.split(r'[/,]', lang_phrase)]
+                for part in parts:
+                    if part:
+                        cleaned_part = part.strip("?.!,¿¡ ")
+                        if cleaned_part not in reverse_dict:
+                            reverse_dict[cleaned_part] = eng_phrase
+                        if part != cleaned_part and part not in reverse_dict:
+                            reverse_dict[part] = eng_phrase
+                            
+        self._reverse_translations[lang] = reverse_dict
+        return reverse_dict
+
+    def perform_translation(self, text, src_lang, tgt_lang):
         text_clean = text.strip()
         if not text_clean:
             return ""
             
-        target_lang = target_lang.lower()
+        src_lang = src_lang.lower()
+        tgt_lang = tgt_lang.lower()
+        
+        if src_lang == tgt_lang:
+            return text_clean
+            
+        if src_lang == "english":
+            return self._translate_forward(text_clean, tgt_lang)
+            
+        if tgt_lang == "english":
+            return self._translate_reverse(text_clean, src_lang)
+            
+        # Pivot translation: src_lang -> English -> tgt_lang
+        english_pivot = self._translate_reverse(text_clean, src_lang)
+        if english_pivot.startswith("[ENGLISH] "):
+            english_pivot = english_pivot[10:]
+        return self._translate_forward(english_pivot, tgt_lang)
+
+    def _translate_forward(self, text_clean, target_lang):
         if target_lang not in self.translations:
             return f"[Language not supported: {target_lang}]"
             
         lang_dict = self.translations[target_lang]
         
-        # 1. Try exact phrase match (case-insensitive, strip common ending punctuation for lookup)
+        # 1. Exact phrase match
         phrase_key = text_clean.lower().strip("?.!,¿¡ ")
         if phrase_key in lang_dict:
             return lang_dict[phrase_key]
             
         # 2. Heuristic phrase & word translation
-        # Extract phrases containing spaces from the dictionary keys
         phrases = [k for k in lang_dict.keys() if " " in k]
-        # Sort phrases by word count / length in descending order to match longer phrases first
         phrases.sort(key=lambda x: len(x.split()), reverse=True)
         
         working_text = text_clean
         placeholders = {}
         placeholder_counter = 0
         
-        # Step 2a: Replace multi-word phrases with temporary placeholders (preserving boundaries)
         for phrase in phrases:
-            # We want to match case-insensitively and respect word boundaries
             escaped_phrase = re.escape(phrase)
             pattern = re.compile(rf"\b{escaped_phrase}\b", re.IGNORECASE)
             
-            # Find all matches
             matches = pattern.findall(working_text)
             if matches:
                 for match in matches:
@@ -1046,12 +1245,9 @@ class TranslatorApp(App):
                         "translation": lang_dict[phrase],
                         "original": match
                     }
-                    # Replace only one occurrence at a time to handle case sensitivity properly
                     working_text = pattern.sub(placeholder, working_text, count=1)
                     placeholder_counter += 1
                     
-        # Step 2b: Tokenize the working text (words and punctuation)
-        # Note: We must allow underscores in words so our tokens are not split up!
         tokens = re.findall(r"\b[a-zA-ZÀ-ÿ0-9_']+\b|[^\w\s]", working_text)
         if not tokens:
             return f"[{target_lang.upper()}] {text_clean}"
@@ -1059,17 +1255,14 @@ class TranslatorApp(App):
         translated_tokens = []
         translated_any = False
         
-        # Step 2c: Translate each token (checking if it is a placeholder or a normal word)
         for token in tokens:
             if token in placeholders:
-                # Replace placeholder with translated phrase
                 translated_tokens.append(placeholders[token]["translation"])
                 translated_any = True
             else:
                 token_lower = token.lower()
                 if token_lower in lang_dict:
                     trans = lang_dict[token_lower]
-                    # Preserve capitalization style
                     if token.istitle():
                         trans = trans.title()
                     elif token.isupper():
@@ -1079,7 +1272,6 @@ class TranslatorApp(App):
                 else:
                     translated_tokens.append(token)
                     
-        # Step 2d: Reconstruct the translated string with correct spacing and punctuation
         if translated_any:
             res = ""
             no_space_before = [",", ".", "!", "?", ";", ":", ")", "]", "}", "\"", "'"]
@@ -1088,10 +1280,8 @@ class TranslatorApp(App):
             for idx, w in enumerate(translated_tokens):
                 if idx > 0:
                     prev_w = translated_tokens[idx - 1]
-                    # Avoid duplicate punctuation if the text already ends with it
                     if w in [",", ".", "!", "?", ";", ":"] and res.endswith(w):
                         continue
-                        
                     if w in no_space_before or prev_w in no_space_after:
                         res += w
                     else:
@@ -1100,8 +1290,85 @@ class TranslatorApp(App):
                     res += w
             return res
             
-        # 3. Fallback
         return f"[{target_lang.upper()}] {text_clean}"
+
+    def _translate_reverse(self, text_clean, src_lang):
+        if src_lang not in self.translations:
+            return f"[Language not supported: {src_lang}]"
+            
+        lang_dict = self.get_reverse_translation_dict(src_lang)
+        
+        # 1. Exact phrase match
+        phrase_key = text_clean.lower().strip("?.!,¿¡ ")
+        if phrase_key in lang_dict:
+            return lang_dict[phrase_key]
+            
+        # 2. Heuristic phrase & word translation
+        phrases = [k for k in lang_dict.keys() if " " in k]
+        phrases.sort(key=lambda x: len(x.split()), reverse=True)
+        
+        working_text = text_clean
+        placeholders = {}
+        placeholder_counter = 0
+        
+        for phrase in phrases:
+            escaped_phrase = re.escape(phrase)
+            pattern = re.compile(rf"\b{escaped_phrase}\b", re.IGNORECASE)
+            
+            matches = pattern.findall(working_text)
+            if matches:
+                for match in matches:
+                    placeholder = f"__TOKEN_{placeholder_counter}__"
+                    placeholders[placeholder] = {
+                        "translation": lang_dict[phrase],
+                        "original": match
+                    }
+                    working_text = pattern.sub(placeholder, working_text, count=1)
+                    placeholder_counter += 1
+                    
+        tokens = re.findall(r"\b[a-zA-ZÀ-ÿ0-9_']+\b|[^\w\s]", working_text)
+        if not tokens:
+            return f"[ENGLISH] {text_clean}"
+            
+        translated_tokens = []
+        translated_any = False
+        
+        for token in tokens:
+            if token in placeholders:
+                translated_tokens.append(placeholders[token]["translation"])
+                translated_any = True
+            else:
+                token_lower = token.lower()
+                if token_lower in lang_dict:
+                    trans = lang_dict[token_lower]
+                    if token.istitle():
+                        trans = trans.title()
+                    elif token.isupper():
+                        trans = trans.upper()
+                    translated_tokens.append(trans)
+                    translated_any = True
+                else:
+                    translated_tokens.append(token)
+                    
+        if translated_any:
+            res = ""
+            no_space_before = [",", ".", "!", "?", ";", ":", ")", "]", "}", "\"", "'"]
+            no_space_after = ["(", "[", "{", "¿", "¡", "\"", "'"]
+            
+            for idx, w in enumerate(translated_tokens):
+                if idx > 0:
+                    prev_w = translated_tokens[idx - 1]
+                    if w in [",", ".", "!", "?", ";", ":"] and res.endswith(w):
+                        continue
+                    if w in no_space_before or prev_w in no_space_after:
+                        res += w
+                    else:
+                        res += " " + w
+                else:
+                    res += w
+            return res
+            
+        return f"[ENGLISH] {text_clean}"
 
 
 if __name__ == "__main__":
