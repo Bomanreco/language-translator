@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.buildozer/
+bin/
+.venv/
+venv/
+.env
+translation_history.json
+.idea/

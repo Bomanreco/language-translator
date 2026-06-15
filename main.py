@@ -1126,12 +1126,17 @@ class TranslatorApp(App):
         except Exception as e:
             print(f"Error loading translations.json: {e}")
 
+    def get_history_path(self):
+        base = self.user_data_dir
+        if base:
+            os.makedirs(base, exist_ok=True)
+            return os.path.join(base, "translation_history.json")
+        legacy = os.path.join(os.path.dirname(__file__), "translation_history.json")
+        return legacy if os.path.exists(legacy) else "translation_history.json"
+
     def load_history(self):
         try:
-            history_path = os.path.join(os.path.dirname(__file__), "translation_history.json")
-            if not os.path.exists(history_path):
-                history_path = "translation_history.json"
-                
+            history_path = self.get_history_path()
             if os.path.exists(history_path):
                 with open(history_path, "r", encoding="utf-8") as f:
                     self.history = json.load(f)
@@ -1146,20 +1151,17 @@ class TranslatorApp(App):
             
     def save_history(self):
         try:
-            history_path = os.path.join(os.path.dirname(__file__), "translation_history.json")
-            with open(history_path, "w", encoding="utf-8") as f:
+            with open(self.get_history_path(), "w", encoding="utf-8") as f:
                 json.dump(self.history, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving history: {e}")
             
     def clear_history(self):
         self.history = []
-        history_path = os.path.join(os.path.dirname(__file__), "translation_history.json")
         try:
+            history_path = self.get_history_path()
             if os.path.exists(history_path):
                 os.remove(history_path)
-            elif os.path.exists("translation_history.json"):
-                os.remove("translation_history.json")
         except Exception as e:
             print(f"Error removing history file: {e}")
                 
