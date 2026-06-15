@@ -325,7 +325,7 @@ class AboutPopup(Popup):
         
         create_section(
             "👨‍💻 DEVELOPERS",
-            "Developers:\nSANYU PATIENCE\nNALULE SHIRAH MUTEEBI\nKAYAGA CATHERINE\n\nSupervisor:\nDR ALI NAGIB\n\nInstitution:\nMUTEESA I ROYAL UNIVERSITY"
+            "Developers:\nSANYU PATIENCE\nNALULE SHIRAH MUTEBI\nKAYAGA CATHERINE\n\nSupervisor:\nDR ALI NAJIB\n\nInstitution:\nMUTEESA I ROYAL UNIVERSITY"
         )
         
         scroll.add_widget(content)
@@ -507,7 +507,7 @@ class TranslatorScreen(Screen):
         root_layout = BoxLayout(orientation='vertical')
         
         # 2. HEADER (Fixed height, remains at top of screen)
-        header = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10), padding=[dp(15), dp(5), dp(15), dp(5)])
+        header = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10), padding=[dp(15), dp(5), dp(15), dp(5)])
         
         with header.canvas.before:
             Color(*get_color_from_hex("#0F172A"))
@@ -538,16 +538,19 @@ class TranslatorScreen(Screen):
         
         # 3. SCROLLABLE CONTAINER
         scroll = ScrollView()
-        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(14), padding=[dp(15), dp(12), dp(15), dp(15)])
+        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(10), padding=[dp(12), dp(10), dp(12), dp(10)])
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
         
         # 4. LANGUAGE SELECTOR CARD (Bidirectional spinners + swap button)
-        lang_card = StyledCard(orientation='horizontal', padding=[dp(12), dp(10)], spacing=dp(10), size_hint_y=None, height=dp(60), bg_color_hex="#1E293B")
+        lang_card = StyledCard(orientation='horizontal', padding=[dp(12), dp(5)], spacing=dp(10), size_hint_y=None, height=dp(52), bg_color_hex="#1E293B")
         
         self.src_lang_spinner = StyledSpinner(
             text="English",
             values=("English", "Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
-            size_hint_x=0.42
+            size_hint_x=0.42,
+            size_hint_y=None,
+            height=dp(40),
+            pos_hint={'center_y': 0.5}
         )
         self.src_lang_spinner.bind(text=self.on_lang_change)
         
@@ -555,15 +558,21 @@ class TranslatorScreen(Screen):
             icon_source="swap.png",
             bg_color_hex="#475569",
             size_hint_x=None,
-            width=dp(45),
-            radius=22.5
+            width=dp(40),
+            size_hint_y=None,
+            height=dp(40),
+            pos_hint={'center_y': 0.5},
+            radius=20
         )
         swap_btn.bind(on_press=self.swap_languages)
         
         self.tgt_lang_spinner = StyledSpinner(
             text="Spanish",
             values=("English", "Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
-            size_hint_x=0.42
+            size_hint_x=0.42,
+            size_hint_y=None,
+            height=dp(40),
+            pos_hint={'center_y': 0.5}
         )
         self.tgt_lang_spinner.bind(text=self.on_lang_change)
         
@@ -573,7 +582,7 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(lang_card)
         
         # 5. INPUT CARD
-        input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(200), bg_color_hex="#1E293B")
+        input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(160), bg_color_hex="#1E293B")
         
         input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
         self.input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
@@ -594,7 +603,7 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(input_card)
         
         # 6. ACTION BUTTONS ROW
-        actions_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
+        actions_row = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
         
         translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1")
         translate_btn.bind(on_press=self.translate)
@@ -611,7 +620,7 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(actions_row)
         
         # 7. OUTPUT CARD (Dual text visibility)
-        output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(220), bg_color_hex="#1E293B")
+        output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(170), bg_color_hex="#1E293B")
         
         output_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
         output_title = Label(text="Translation:", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
