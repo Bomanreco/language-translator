@@ -15,6 +15,7 @@ from kivy.core.clipboard import Clipboard
 from kivy.graphics import Color, RoundedRectangle
 from kivy.utils import get_color_from_hex, platform
 from kivy.clock import mainthread
+from kivy.metrics import dp
 
 import json
 import os
@@ -51,8 +52,8 @@ class RoundedButton(Button):
         self.background_color = (0, 0, 0, 0)
         self.color = (1, 1, 1, 1)  # White text
         self.bold = True
-        self.font_size = '16sp'
-        self.radius = radius
+        self.font_size = '15sp'
+        self.radius = dp(radius)
         
         self.bg_color = get_color_from_hex(bg_color_hex)
         # Calculate pressed color (darker version of the button color)
@@ -84,9 +85,9 @@ class RoundedTextInput(TextInput):
         self.cursor_color = get_color_from_hex("#0EA5E9")  # Sky Blue cursor
         self.foreground_color = get_color_from_hex("#F8FAFC")  # slate-50
         self.hint_text_color = get_color_from_hex("#64748B")  # slate-500
-        self.padding = [14, 12, 14, 12]
+        self.padding = [dp(14), dp(12), dp(14), dp(12)]
         self.font_size = '16sp'
-        self.radius = radius
+        self.radius = dp(radius)
         
         self.normal_border_color = get_color_from_hex(border_color_hex)
         self.active_border_color = get_color_from_hex("#6366F1")  # Indigo-500 focus border
@@ -94,15 +95,15 @@ class RoundedTextInput(TextInput):
         
         with self.canvas.before:
             self.border_paint = Color(*self.normal_border_color)
-            self.border_rect = RoundedRectangle(pos=(self.x - 1, self.y - 1), size=(self.width + 2, self.height + 2), radius=[self.radius])
+            self.border_rect = RoundedRectangle(pos=(self.x - dp(1), self.y - dp(1)), size=(self.width + dp(2), self.height + dp(2)), radius=[self.radius])
             self.bg_paint = Color(*self.bg_color)
             self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
             
         self.bind(pos=self.update_rect, size=self.update_rect)
         
     def update_rect(self, *args):
-        self.border_rect.pos = (self.x - 1, self.y - 1)
-        self.border_rect.size = (self.width + 2, self.height + 2)
+        self.border_rect.pos = (self.x - dp(1), self.y - dp(1))
+        self.border_rect.size = (self.width + dp(2), self.height + dp(2))
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
         
@@ -117,13 +118,13 @@ class StyledCard(BoxLayout):
     def __init__(self, bg_color_hex="#1E293B", border_color_hex=None, radius=12, **kwargs):
         super().__init__(**kwargs)
         self.bg_color = get_color_from_hex(bg_color_hex)
-        self.radius = radius
+        self.radius = dp(radius)
         
         with self.canvas.before:
             if border_color_hex:
                 self.border_color = get_color_from_hex(border_color_hex)
                 self.border_paint = Color(*self.border_color)
-                self.border_rect = RoundedRectangle(pos=(self.x - 1, self.y - 1), size=(self.width + 2, self.height + 2), radius=[self.radius])
+                self.border_rect = RoundedRectangle(pos=(self.x - dp(1), self.y - dp(1)), size=(self.width + dp(2), self.height + dp(2)), radius=[self.radius])
                 
             self.bg_paint = Color(*self.bg_color)
             self.bg_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
@@ -132,8 +133,8 @@ class StyledCard(BoxLayout):
         
     def update_rect(self, *args):
         if hasattr(self, 'border_rect'):
-            self.border_rect.pos = (self.x - 1, self.y - 1)
-            self.border_rect.size = (self.width + 2, self.height + 2)
+            self.border_rect.pos = (self.x - dp(1), self.y - dp(1))
+            self.border_rect.size = (self.width + dp(2), self.height + dp(2))
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
 
@@ -146,7 +147,7 @@ class StyledSpinnerOption(SpinnerOption):
         self.background_color = get_color_from_hex("#1E293B")
         self.color = get_color_from_hex("#F8FAFC")
         self.bold = True
-        self.height = 44
+        self.height = dp(44)
 
 
 class StyledSpinner(Spinner):
@@ -159,7 +160,7 @@ class StyledSpinner(Spinner):
         self.color = (1, 1, 1, 1)
         self.bold = True
         self.font_size = '15sp'
-        self.radius = radius
+        self.radius = dp(radius)
         
         self.bg_color = get_color_from_hex(bg_color_hex)
         self.pressed_color = [c * 0.8 for c in self.bg_color[:3]] + [self.bg_color[3]]
@@ -193,14 +194,14 @@ class AboutPopup(Popup):
         self.background = ""
         self.background_color = (0, 0, 0, 0)
         
-        card = StyledCard(orientation='vertical', padding=15, spacing=12, bg_color_hex="#0F172A", border_color_hex="#334155")
+        card = StyledCard(orientation='vertical', padding=dp(15), spacing=dp(12), bg_color_hex="#0F172A", border_color_hex="#334155")
         
         scroll = ScrollView()
-        content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=15)
+        content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(15))
         content.bind(minimum_height=content.setter('height'))
         
         def create_section(section_title, section_text):
-            lbl_title = Label(text=section_title, bold=True, color=get_color_from_hex("#38BDF8"), size_hint_y=None, height=30, font_size='16sp', halign='left')
+            lbl_title = Label(text=section_title, bold=True, color=get_color_from_hex("#38BDF8"), size_hint_y=None, height=dp(30), font_size='16sp', halign='left')
             lbl_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
             lbl_text = Label(text=section_text, color=get_color_from_hex("#CBD5E1"), size_hint_y=None, font_size='14sp', halign='left')
@@ -239,7 +240,7 @@ class AboutPopup(Popup):
         scroll.add_widget(content)
         card.add_widget(scroll)
         
-        btn = RoundedButton(text="Close", bg_color_hex="#475569", size_hint_y=None, height=45)
+        btn = RoundedButton(text="Close", bg_color_hex="#475569", size_hint_y=None, height=dp(45))
         btn.bind(on_press=self.dismiss)
         card.add_widget(btn)
         
@@ -256,10 +257,10 @@ class HistoryPopup(Popup):
         self.background_color = (0, 0, 0, 0)
         self.clear_callback = clear_callback
         
-        self.card = StyledCard(orientation='vertical', padding=15, spacing=12, bg_color_hex="#0F172A", border_color_hex="#334155")
+        self.card = StyledCard(orientation='vertical', padding=dp(15), spacing=dp(12), bg_color_hex="#0F172A", border_color_hex="#334155")
         
         self.scroll = ScrollView()
-        self.list_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
+        self.list_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(10))
         self.list_layout.bind(minimum_height=self.list_layout.setter('height'))
         
         self.populate_list(history_list)
@@ -267,7 +268,7 @@ class HistoryPopup(Popup):
         self.scroll.add_widget(self.list_layout)
         self.card.add_widget(self.scroll)
         
-        btn_box = BoxLayout(size_hint_y=None, height=45, spacing=10)
+        btn_box = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(10))
         
         clear_btn = RoundedButton(text="Clear History", bg_color_hex="#EF4444", size_hint_x=0.5)
         clear_btn.bind(on_press=self.clear_history)
@@ -284,20 +285,20 @@ class HistoryPopup(Popup):
     def populate_list(self, history_list):
         self.list_layout.clear_widgets()
         if not history_list:
-            lbl = Label(text="No translation history yet", color=get_color_from_hex("#64748B"), size_hint_y=None, height=50)
+            lbl = Label(text="No translation history yet", color=get_color_from_hex("#64748B"), size_hint_y=None, height=dp(50))
             self.list_layout.add_widget(lbl)
             return
             
         for item in history_list:
-            item_box = StyledCard(orientation='vertical', padding=10, spacing=4, size_hint_y=None, height=85, bg_color_hex="#1E293B", radius=6)
+            item_box = StyledCard(orientation='vertical', padding=dp(10), spacing=dp(4), size_hint_y=None, height=dp(85), bg_color_hex="#1E293B", radius=6)
             
-            lang_label = Label(text=f"English ➔ {item['lang'].title()}", bold=True, color=get_color_from_hex("#38BDF8"), font_size='12sp', size_hint_y=None, height=15, halign='left')
+            lang_label = Label(text=f"English ➔ {item['lang'].title()}", bold=True, color=get_color_from_hex("#38BDF8"), font_size='12sp', size_hint_y=None, height=dp(15), halign='left')
             lang_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
-            src_label = Label(text=f"In: {item['source']}", color=get_color_from_hex("#94A3B8"), font_size='13sp', size_hint_y=None, height=20, halign='left')
+            src_label = Label(text=f"In: {item['source']}", color=get_color_from_hex("#94A3B8"), font_size='13sp', size_hint_y=None, height=dp(20), halign='left')
             src_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
-            tgt_label = Label(text=f"Out: {item['target']}", color=get_color_from_hex("#F1F5F9"), font_size='14sp', size_hint_y=None, height=25, halign='left', bold=True)
+            tgt_label = Label(text=f"Out: {item['target']}", color=get_color_from_hex("#F1F5F9"), font_size='14sp', size_hint_y=None, height=dp(25), halign='left', bold=True)
             tgt_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
             
             item_box.add_widget(lang_label)
@@ -319,12 +320,12 @@ class InfoPopup(Popup):
         self.background = ""
         self.background_color = (0, 0, 0, 0)
         
-        card = StyledCard(orientation='vertical', padding=15, spacing=15, bg_color_hex="#0F172A", border_color_hex="#334155")
+        card = StyledCard(orientation='vertical', padding=dp(15), spacing=dp(15), bg_color_hex="#0F172A", border_color_hex="#334155")
         
         lbl = Label(text=msg_text, markup=True, font_size='15sp', halign='center', color=get_color_from_hex("#CBD5E1"))
         lbl.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
         
-        btn = RoundedButton(text="OK", bg_color_hex="#6366F1", size_hint_y=None, height=45)
+        btn = RoundedButton(text="OK", bg_color_hex="#6366F1", size_hint_y=None, height=dp(45))
         btn.bind(on_press=self.dismiss)
         
         card.add_widget(lbl)
@@ -342,21 +343,21 @@ class VoiceSimulatorPopup(Popup):
         self.background_color = (0, 0, 0, 0)
         self.select_callback = select_callback
         
-        card = StyledCard(orientation='vertical', padding=15, spacing=12, bg_color_hex="#0F172A", border_color_hex="#334155")
+        card = StyledCard(orientation='vertical', padding=dp(15), spacing=dp(12), bg_color_hex="#0F172A", border_color_hex="#334155")
         
         lbl = Label(
             text="[color=#38BDF8][b]Desktop Demo Mode[/b][/color]\nVoice input is only available natively on Android. Select a simulated speech phrase below to feed into the translator:",
             markup=True,
             font_size='14sp',
             size_hint_y=None,
-            height=60,
+            height=dp(60),
             halign='center'
         )
         lbl.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
         card.add_widget(lbl)
         
         scroll = ScrollView()
-        list_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=8)
+        list_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8))
         list_layout.bind(minimum_height=list_layout.setter('height'))
         
         phrases = [
@@ -370,14 +371,14 @@ class VoiceSimulatorPopup(Popup):
         ]
         
         for phrase in phrases:
-            btn = RoundedButton(text=phrase, bg_color_hex="#1E293B", size_hint_y=None, height=45)
+            btn = RoundedButton(text=phrase, bg_color_hex="#1E293B", size_hint_y=None, height=dp(45))
             btn.bind(on_press=lambda inst, p=phrase: self.select_phrase(p))
             list_layout.add_widget(btn)
             
         scroll.add_widget(list_layout)
         card.add_widget(scroll)
         
-        close_btn = RoundedButton(text="Cancel", bg_color_hex="#475569", size_hint_y=None, height=45)
+        close_btn = RoundedButton(text="Cancel", bg_color_hex="#475569", size_hint_y=None, height=dp(45))
         close_btn.bind(on_press=self.dismiss)
         card.add_widget(close_btn)
         
@@ -415,11 +416,13 @@ class TranslatorScreen(Screen):
         root_layout = BoxLayout(orientation='vertical')
         
         # 2. HEADER (Fixed height, remains at top of screen)
-        header = BoxLayout(size_hint_y=None, height=55, spacing=10, padding=[15, 5, 15, 5])
+        header = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10), padding=[dp(15), dp(5), dp(15), dp(5)])
         
         with header.canvas.before:
             Color(*get_color_from_hex("#0F172A"))
-            RoundedRectangle(pos=header.pos, size=header.size)
+            self.header_bg = RoundedRectangle(pos=header.pos, size=header.size)
+            
+        header.bind(pos=self.update_header_bg, size=self.update_header_bg)
             
         title = Label(
             text="🌐 Offline Translator",
@@ -431,10 +434,10 @@ class TranslatorScreen(Screen):
         )
         title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        hist_btn = RoundedButton(text="History", bg_color_hex="#0EA5E9", size_hint_x=None, width=85)
+        hist_btn = RoundedButton(text="History", bg_color_hex="#0EA5E9", size_hint_x=None, width=dp(85))
         hist_btn.bind(on_press=self.show_history)
         
-        about_btn = RoundedButton(text="About", bg_color_hex="#475569", size_hint_x=None, width=75)
+        about_btn = RoundedButton(text="About", bg_color_hex="#475569", size_hint_x=None, width=dp(75))
         about_btn.bind(on_press=self.show_about)
         
         header.add_widget(title)
@@ -444,11 +447,11 @@ class TranslatorScreen(Screen):
         
         # 3. SCROLLABLE CONTAINER (Wraps the rest of the contents to prevent mixing on mobile)
         scroll = ScrollView()
-        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=14, padding=[15, 12, 15, 15])
+        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(14), padding=[dp(15), dp(12), dp(15), dp(15)])
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
         
         # 4. LANGUAGE SELECTOR CARD
-        lang_card = StyledCard(orientation='horizontal', padding=[12, 10], spacing=10, size_hint_y=None, height=60, bg_color_hex="#1E293B")
+        lang_card = StyledCard(orientation='horizontal', padding=[dp(12), dp(10)], spacing=dp(10), size_hint_y=None, height=dp(60), bg_color_hex="#1E293B")
         lang_label = Label(text="Translate English to:", bold=True, font_size='15sp', color=get_color_from_hex("#94A3B8"), size_hint_x=0.45, halign='left')
         lang_label.bind(width=lambda s, w: s.setter('text_size')(s, (w, None)))
         
@@ -464,13 +467,13 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(lang_card)
         
         # 5. INPUT CARD
-        input_card = StyledCard(orientation='vertical', padding=12, spacing=8, size_hint_y=None, height=200, bg_color_hex="#1E293B")
+        input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(200), bg_color_hex="#1E293B")
         
-        input_header = BoxLayout(size_hint_y=None, height=35, spacing=10)
+        input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
         input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
         input_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        mic_btn = RoundedButton(text="🎙 Record", bg_color_hex="#EF4444", size_hint_x=None, width=95)
+        mic_btn = RoundedButton(text="🎙 Record", bg_color_hex="#EF4444", size_hint_x=None, width=dp(95))
         mic_btn.bind(on_press=self.start_voice_input)
         
         input_header.add_widget(input_title)
@@ -485,7 +488,7 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(input_card)
         
         # 6. ACTION BUTTONS ROW
-        actions_row = BoxLayout(size_hint_y=None, height=50, spacing=10)
+        actions_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
         
         translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1")
         translate_btn.bind(on_press=self.translate)
@@ -502,13 +505,13 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(actions_row)
         
         # 7. OUTPUT CARD
-        output_card = StyledCard(orientation='vertical', padding=12, spacing=8, size_hint_y=None, height=200, bg_color_hex="#1E293B")
+        output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(200), bg_color_hex="#1E293B")
         
-        output_header = BoxLayout(size_hint_y=None, height=35, spacing=10)
+        output_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
         output_title = Label(text="Translation:", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
         output_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        self.speak_btn = RoundedButton(text="🔊 Speak", bg_color_hex="#10B981", size_hint_x=None, width=90)
+        self.speak_btn = RoundedButton(text="🔊 Speak", bg_color_hex="#10B981", size_hint_x=None, width=dp(90))
         self.speak_btn.bind(on_press=self.speak_translation)
         
         output_header.add_widget(output_title)
@@ -537,6 +540,10 @@ class TranslatorScreen(Screen):
         
         self.add_widget(root_layout)
         
+    def update_header_bg(self, instance, value):
+        self.header_bg.pos = instance.pos
+        self.header_bg.size = instance.size
+
     def show_about(self, instance):
         AboutPopup().open()
         
@@ -590,15 +597,34 @@ class TranslatorScreen(Screen):
     def start_voice_input(self, instance):
         if is_android:
             try:
-                intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now in English...")
-                PythonActivity.mActivity.startActivityForResult(intent, self.VOICE_INPUT_REQUEST_CODE)
+                from android.permissions import check_permission, request_permissions
+                if not check_permission("android.permission.RECORD_AUDIO"):
+                    request_permissions(["android.permission.RECORD_AUDIO"], self.on_permission_result)
+                else:
+                    self._do_start_voice_input()
             except Exception as e:
-                self.show_info_popup("Voice Input Error", f"Failed to start speech recognizer:\n{str(e)}")
+                print(f"Permission error: {e}")
+                self._do_start_voice_input()
         else:
             # Show the desktop simulation popup
             VoiceSimulatorPopup(select_callback=self.simulated_voice_callback).open()
+
+    @mainthread
+    def on_permission_result(self, permissions, grant_results):
+        if grant_results and grant_results[0]:
+            self._do_start_voice_input()
+        else:
+            self.show_info_popup("Permission Denied", "Audio recording permission is required for voice input.")
+
+    def _do_start_voice_input(self):
+        try:
+            intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now in English...")
+            PythonActivity.mActivity.startActivityForResult(intent, self.VOICE_INPUT_REQUEST_CODE)
+        except Exception as e:
+            self.show_info_popup("Voice Input Error", f"Failed to start speech recognizer:\n{str(e)}")
 
     def simulated_voice_callback(self, phrase):
         self.input_text.text = phrase
@@ -991,43 +1017,85 @@ class TranslatorApp(App):
         lang_dict = self.translations[target_lang]
         
         # 1. Try exact phrase match (case-insensitive, strip common ending punctuation for lookup)
-        phrase_key = text_clean.lower().strip("?.!,")
+        phrase_key = text_clean.lower().strip("?.!,¿¡ ")
         if phrase_key in lang_dict:
             return lang_dict[phrase_key]
             
-        # 2. Heuristic word-by-word translation
-        words = re.findall(r"\b[a-zA-ZÀ-ÿ']+\b|[^\w\s]", text_clean)
-        if not words:
+        # 2. Heuristic phrase & word translation
+        # Extract phrases containing spaces from the dictionary keys
+        phrases = [k for k in lang_dict.keys() if " " in k]
+        # Sort phrases by word count / length in descending order to match longer phrases first
+        phrases.sort(key=lambda x: len(x.split()), reverse=True)
+        
+        working_text = text_clean
+        placeholders = {}
+        placeholder_counter = 0
+        
+        # Step 2a: Replace multi-word phrases with temporary placeholders (preserving boundaries)
+        for phrase in phrases:
+            # We want to match case-insensitively and respect word boundaries
+            escaped_phrase = re.escape(phrase)
+            pattern = re.compile(rf"\b{escaped_phrase}\b", re.IGNORECASE)
+            
+            # Find all matches
+            matches = pattern.findall(working_text)
+            if matches:
+                for match in matches:
+                    placeholder = f"__TOKEN_{placeholder_counter}__"
+                    placeholders[placeholder] = {
+                        "translation": lang_dict[phrase],
+                        "original": match
+                    }
+                    # Replace only one occurrence at a time to handle case sensitivity properly
+                    working_text = pattern.sub(placeholder, working_text, count=1)
+                    placeholder_counter += 1
+                    
+        # Step 2b: Tokenize the working text (words and punctuation)
+        # Note: We must allow underscores in words so our tokens are not split up!
+        tokens = re.findall(r"\b[a-zA-ZÀ-ÿ0-9_']+\b|[^\w\s]", working_text)
+        if not tokens:
             return f"[{target_lang.upper()}] {text_clean}"
             
-        translated_words = []
+        translated_tokens = []
         translated_any = False
         
-        for word in words:
-            word_lower = word.lower()
-            if word_lower in lang_dict:
-                trans = lang_dict[word_lower]
-                if word.istitle():
-                    trans = trans.title()
-                elif word.isupper():
-                    trans = trans.upper()
-                translated_words.append(trans)
+        # Step 2c: Translate each token (checking if it is a placeholder or a normal word)
+        for token in tokens:
+            if token in placeholders:
+                # Replace placeholder with translated phrase
+                translated_tokens.append(placeholders[token]["translation"])
                 translated_any = True
             else:
-                translated_words.append(word)
-                
+                token_lower = token.lower()
+                if token_lower in lang_dict:
+                    trans = lang_dict[token_lower]
+                    # Preserve capitalization style
+                    if token.istitle():
+                        trans = trans.title()
+                    elif token.isupper():
+                        trans = trans.upper()
+                    translated_tokens.append(trans)
+                    translated_any = True
+                else:
+                    translated_tokens.append(token)
+                    
+        # Step 2d: Reconstruct the translated string with correct spacing and punctuation
         if translated_any:
             res = ""
-            for idx, w in enumerate(translated_words):
+            no_space_before = [",", ".", "!", "?", ";", ":", ")", "]", "}", "\"", "'"]
+            no_space_after = ["(", "[", "{", "¿", "¡", "\"", "'"]
+            
+            for idx, w in enumerate(translated_tokens):
                 if idx > 0:
-                    prev_w = translated_words[idx - 1]
-                    if re.match(r"^[a-zA-ZÀ-ÿ0-9]", w) and re.match(r"^[a-zA-ZÀ-ÿ0-9]$|\b", prev_w):
-                        if prev_w in ["'", "\"", "(", "¿", "¡"]:
-                            res += w
-                        else:
-                            res += " " + w
-                    else:
+                    prev_w = translated_tokens[idx - 1]
+                    # Avoid duplicate punctuation if the text already ends with it
+                    if w in [",", ".", "!", "?", ";", ":"] and res.endswith(w):
+                        continue
+                        
+                    if w in no_space_before or prev_w in no_space_after:
                         res += w
+                    else:
+                        res += " " + w
                 else:
                     res += w
             return res
