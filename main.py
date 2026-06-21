@@ -141,14 +141,23 @@ class RoundedIconButton(ButtonBehavior, BoxLayout):
         if icon_source:
             if icon_source == "history.png":
                 self.icon_widget = ClockIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
-                self.add_widget(self.icon_widget)
             elif icon_source == "about.png":
                 self.icon_widget = InfoIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
-                self.add_widget(self.icon_widget)
             else:
                 icon_path = check_icon(icon_source)
                 if icon_path:
                     self.icon_widget = Image(source=icon_path, size_hint=(None, None), size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+                else:
+                    self.icon_widget = None
+            
+            if hasattr(self, 'icon_widget') and self.icon_widget:
+                if not text:
+                    self.padding = [0, 0]
+                    from kivy.uix.widget import Widget
+                    self.add_widget(Widget(size_hint_x=1))
+                    self.add_widget(self.icon_widget)
+                    self.add_widget(Widget(size_hint_x=1))
+                else:
                     self.add_widget(self.icon_widget)
             
         if text:
@@ -515,8 +524,8 @@ class TranslatorScreen(Screen):
             
         header.bind(pos=self.update_header_bg, size=self.update_header_bg)
             
-        # Title with Logo
-        title_layout = BoxLayout(orientation='horizontal', spacing=dp(8), size_hint_x=0.5)
+        # Title with Logo (flexible size to avoid squeezing on mobile)
+        title_layout = BoxLayout(orientation='horizontal', spacing=dp(8), size_hint_x=1.0)
         logo_path = check_icon("logo.png")
         if logo_path:
             title_logo = Image(source=logo_path, size_hint=(None, None), size=(dp(30), dp(30)), pos_hint={'center_y': 0.5})
@@ -525,10 +534,27 @@ class TranslatorScreen(Screen):
         title_lbl.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         title_layout.add_widget(title_lbl)
         
-        hist_btn = RoundedIconButton(text="History", icon_source="history.png", bg_color_hex="#0EA5E9", size_hint_x=None, width=dp(100))
+        # Circular Icon-only buttons for History & About to fit narrow screens
+        hist_btn = RoundedIconButton(
+            text="", 
+            icon_source="history.png", 
+            bg_color_hex="#0EA5E9", 
+            size_hint=(None, None), 
+            size=(dp(40), dp(40)), 
+            pos_hint={'center_y': 0.5},
+            radius=20
+        )
         hist_btn.bind(on_press=self.show_history)
         
-        about_btn = RoundedIconButton(text="About", icon_source="about.png", bg_color_hex="#475569", size_hint_x=None, width=dp(90))
+        about_btn = RoundedIconButton(
+            text="", 
+            icon_source="about.png", 
+            bg_color_hex="#475569", 
+            size_hint=(None, None), 
+            size=(dp(40), dp(40)), 
+            pos_hint={'center_y': 0.5},
+            radius=20
+        )
         about_btn.bind(on_press=self.show_about)
         
         header.add_widget(title_layout)
@@ -537,7 +563,7 @@ class TranslatorScreen(Screen):
         root_layout.add_widget(header)
         
         # 3. SCROLLABLE CONTAINER
-        scroll = ScrollView()
+        self.scroll = ScrollView()
         scroll_content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(10), padding=[dp(12), dp(10), dp(12), dp(10)])
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
         
@@ -582,55 +608,55 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(lang_card)
         
         # 5. INPUT CARD
-        input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(160), bg_color_hex="#1E293B")
+        self.input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(160), bg_color_hex="#1E293B")
         
-        input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
+        input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(8))
         self.input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
         self.input_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        mic_btn = RoundedIconButton(text="Record", icon_source="mic.png", bg_color_hex="#EF4444", size_hint_x=None, width=dp(105))
+        # Microphone & Clear button grouped in input header to save space
+        mic_btn = RoundedIconButton(text="Record", icon_source="mic.png", bg_color_hex="#EF4444", size_hint=(None, None), size=(dp(100), dp(35)), radius=8)
         mic_btn.bind(on_press=self.start_voice_input)
+        
+        clear_btn = RoundedIconButton(text="", icon_source="clear.png", bg_color_hex="#475569", size_hint=(None, None), size=(dp(35), dp(35)), radius=8)
+        clear_btn.bind(on_press=self.clear)
         
         input_header.add_widget(self.input_title)
         input_header.add_widget(mic_btn)
-        input_card.add_widget(input_header)
+        input_header.add_widget(clear_btn)
+        self.input_card.add_widget(input_header)
         
         self.input_text = RoundedTextInput(
             hint_text="Type English text here or use voice record...",
             multiline=True
         )
-        input_card.add_widget(self.input_text)
-        scroll_content.add_widget(input_card)
+        # Bind keyboard focus auto-scroll behavior
+        self.input_text.bind(focus=self.on_input_focus)
+        self.input_card.add_widget(self.input_text)
+        scroll_content.add_widget(self.input_card)
         
-        # 6. ACTION BUTTONS ROW
-        actions_row = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
-        
-        translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1")
+        # 6. TRANSLATE BUTTON (Full-width, prominent finger-friendly action)
+        translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1", size_hint_y=None, height=dp(48))
         translate_btn.bind(on_press=self.translate)
-        
-        self.copy_btn = RoundedIconButton(text="Copy", icon_source="copy.png", bg_color_hex="#10B981", size_hint_x=0.50)
-        self.copy_btn.bind(on_press=self.copy_to_clipboard)
-        
-        clear_btn = RoundedIconButton(text="Clear", icon_source="clear.png", bg_color_hex="#475569", size_hint_x=0.50)
-        clear_btn.bind(on_press=self.clear)
-        
-        actions_row.add_widget(translate_btn)
-        actions_row.add_widget(self.copy_btn)
-        actions_row.add_widget(clear_btn)
-        scroll_content.add_widget(actions_row)
+        scroll_content.add_widget(translate_btn)
         
         # 7. OUTPUT CARD (Dual text visibility)
         output_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(170), bg_color_hex="#1E293B")
         
-        output_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(10))
+        output_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(8))
         output_title = Label(text="Translation:", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
         output_title.bind(width=lambda s, w: s.setter('text_size')(s, (w, s.height)))
         
-        self.speak_btn = RoundedIconButton(text="Speak", icon_source="speak.png", bg_color_hex="#10B981", size_hint_x=None, width=dp(100))
+        # Speak & Copy buttons grouped in output header
+        self.speak_btn = RoundedIconButton(text="Speak", icon_source="speak.png", bg_color_hex="#10B981", size_hint=(None, None), size=(dp(100), dp(35)), radius=8)
         self.speak_btn.bind(on_press=self.speak_translation)
+        
+        self.copy_btn = RoundedIconButton(text="", icon_source="copy.png", bg_color_hex="#10B981", size_hint=(None, None), size=(dp(35), dp(35)), radius=8)
+        self.copy_btn.bind(on_press=self.copy_to_clipboard)
         
         output_header.add_widget(output_title)
         output_header.add_widget(self.speak_btn)
+        output_header.add_widget(self.copy_btn)
         output_card.add_widget(output_header)
         
         output_scroll = ScrollView()
@@ -668,8 +694,8 @@ class TranslatorScreen(Screen):
         scroll_content.add_widget(output_card)
         
         # Add scroll content to scroll container, and container to root
-        scroll.add_widget(scroll_content)
-        root_layout.add_widget(scroll)
+        self.scroll.add_widget(scroll_content)
+        root_layout.add_widget(self.scroll)
         
         self.add_widget(root_layout)
         
@@ -726,6 +752,15 @@ class TranslatorScreen(Screen):
         self.input_text.text = ""
         self.output_label.text = "Translation will appear here..."
         self.output_src_label.text = ""
+        
+    def on_input_focus(self, instance, value):
+        if value:
+            # Scroll the input card into view after soft keyboard opens and window resizes
+            from kivy.clock import Clock
+            def do_scroll(dt):
+                if hasattr(self, 'scroll') and hasattr(self, 'input_card'):
+                    self.scroll.scroll_to(self.input_card)
+            Clock.schedule_once(do_scroll, 0.35)
         
     def copy_to_clipboard(self, instance):
         text = self.output_label.text
