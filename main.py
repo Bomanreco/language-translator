@@ -121,6 +121,117 @@ class InfoIconWidget(Widget):
             Line(points=[self.x + self.width/2, self.y + self.height/2 + dp(1), self.x + self.width/2, self.y + self.height/2 - dp(4)], width=dp(1.5))
 
 
+class GlobeIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(ellipse=(self.x + dp(2), self.y + dp(2), self.width - dp(4), self.height - dp(4)), width=dp(1.5))
+            Line(points=[self.x + dp(2), self.y + self.height/2, self.x + self.width - dp(2), self.y + self.height/2], width=dp(1.2))
+            Line(points=[self.x + dp(4), self.y + self.height/2 + dp(4), self.x + self.width - dp(4), self.y + self.height/2 + dp(4)], width=dp(1))
+            Line(points=[self.x + dp(4), self.y + self.height/2 - dp(4), self.x + self.width - dp(4), self.y + self.height/2 - dp(4)], width=dp(1))
+            Line(ellipse=(self.x + self.width/2 - dp(4), self.y + dp(2), dp(8), self.height - dp(4)), width=dp(1.2))
+            Line(points=[self.x + self.width/2, self.y + dp(2), self.x + self.width/2, self.y + self.height - dp(2)], width=dp(1.2))
+
+
+class CopyIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(points=[self.x + dp(6), self.y + self.height - dp(2),
+                         self.x + self.width - dp(2), self.y + self.height - dp(2),
+                         self.x + self.width - dp(2), self.y + dp(6),
+                         self.x + dp(6), self.y + dp(6),
+                         self.x + dp(6), self.y + self.height - dp(2)], width=dp(1.5))
+            Line(rectangle=(self.x + dp(2), self.y + dp(2), self.width - dp(8), self.height - dp(8)), width=dp(1.5))
+
+
+class ClearIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(points=[self.x + dp(4), self.y + dp(4), self.x + self.width - dp(4), self.y + self.height - dp(4)], width=dp(2))
+            Line(points=[self.x + dp(4), self.y + self.height - dp(4), self.x + self.width - dp(4), self.y + dp(4)], width=dp(2))
+
+
+class SpeakerIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(points=[
+                self.x + dp(4), self.y + dp(7),
+                self.x + dp(8), self.y + dp(7),
+                self.x + dp(12), self.y + dp(3),
+                self.x + dp(12), self.y + self.height - dp(3),
+                self.x + dp(8), self.y + self.height - dp(7),
+                self.x + dp(4), self.y + self.height - dp(7),
+                self.x + dp(4), self.y + dp(7)
+            ], width=dp(1.5))
+            Line(circle=(self.x + dp(11), self.y + self.height/2, dp(4), -45, 45), width=dp(1.5))
+            Line(circle=(self.x + dp(11), self.y + self.height/2, dp(8), -45, 45), width=dp(1.5))
+
+
+class MicIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(rectangle=(self.x + self.width/2 - dp(3), self.y + dp(6), dp(6), dp(10)), width=dp(1.5))
+            Line(circle=(self.x + self.width/2, self.y + dp(10), dp(6), 90, 270), width=dp(1.5))
+            Line(points=[self.x + self.width/2, self.y + dp(4), self.x + self.width/2, self.y + dp(1)], width=dp(1.5))
+            Line(points=[self.x + self.width/2 - dp(4), self.y + dp(1), self.x + self.width/2 + dp(4), self.y + dp(1)], width=dp(1.5))
+
+
+class SwapIconWidget(Widget):
+    def __init__(self, size_hint=(None, None), size=(dp(20), dp(20)), **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = size_hint
+        self.size = size
+        self.bind(pos=self.update_canvas, size=self.update_canvas)
+
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            Line(points=[self.x + dp(3), self.y + self.height - dp(6), self.x + self.width - dp(3), self.y + self.height - dp(6)], width=dp(1.5))
+            Line(points=[self.x + self.width - dp(7), self.y + self.height - dp(9), self.x + self.width - dp(3), self.y + self.height - dp(6), self.x + self.width - dp(7), self.y + self.height - dp(3)], width=dp(1.5))
+            Line(points=[self.x + self.width - dp(3), self.y + dp(6), self.x + dp(3), self.y + dp(6)], width=dp(1.5))
+            Line(points=[self.x + dp(7), self.y + dp(3), self.x + dp(3), self.y + dp(6), self.x + dp(7), self.y + dp(9)], width=dp(1.5))
+
+
 class RoundedIconButton(ButtonBehavior, BoxLayout):
     def __init__(self, text="", icon_source=None, bg_color_hex="#6366F1", radius=8, icon_size=dp(20), font_size='15sp', text_color_hex="#FFFFFF", **kwargs):
         super().__init__(**kwargs)
@@ -143,6 +254,18 @@ class RoundedIconButton(ButtonBehavior, BoxLayout):
                 self.icon_widget = ClockIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
             elif icon_source == "about.png":
                 self.icon_widget = InfoIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "copy.png":
+                self.icon_widget = CopyIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "clear.png":
+                self.icon_widget = ClearIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "mic.png":
+                self.icon_widget = MicIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "speak.png":
+                self.icon_widget = SpeakerIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "swap.png":
+                self.icon_widget = SwapIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
+            elif icon_source == "globe.png":
+                self.icon_widget = GlobeIconWidget(size=(icon_size, icon_size), pos_hint={'center_y': 0.5})
             else:
                 icon_path = check_icon(icon_source)
                 if icon_path:
@@ -183,9 +306,9 @@ class RoundedTextInput(TextInput):
         self.background_active = ''
         self.background_color = (0, 0, 0, 0)
         self.cursor_color = get_color_from_hex("#0EA5E9")  # Sky Blue cursor
-        self.foreground_color = get_color_from_hex("#F8FAFC")  # slate-50
-        self.hint_text_color = get_color_from_hex("#64748B")  # slate-500
-        self.padding = [dp(14), dp(12), dp(14), dp(12)]
+        self.foreground_color = get_color_from_hex("#FFFFFF")  # Pure White
+        self.hint_text_color = get_color_from_hex("#94A3B8")  # slate-400 hint text
+        self.padding = [dp(10), dp(10), dp(10), dp(10)]
         self.font_size = '16sp'
         self.radius = dp(radius)
         
@@ -570,6 +693,9 @@ class TranslatorScreen(Screen):
         # 4. LANGUAGE SELECTOR CARD (Bidirectional spinners + swap button)
         lang_card = StyledCard(orientation='horizontal', padding=[dp(12), dp(5)], spacing=dp(10), size_hint_y=None, height=dp(52), bg_color_hex="#1E293B")
         
+        # Prepend a Globe Icon for language representation
+        lang_icon = GlobeIconWidget(size=(dp(24), dp(24)), pos_hint={'center_y': 0.5})
+        
         self.src_lang_spinner = StyledSpinner(
             text="English",
             values=("English", "Spanish", "French", "German", "Italian", "Portuguese", "Swahili", "Luganda"),
@@ -602,13 +728,14 @@ class TranslatorScreen(Screen):
         )
         self.tgt_lang_spinner.bind(text=self.on_lang_change)
         
+        lang_card.add_widget(lang_icon)
         lang_card.add_widget(self.src_lang_spinner)
         lang_card.add_widget(swap_btn)
         lang_card.add_widget(self.tgt_lang_spinner)
         scroll_content.add_widget(lang_card)
         
-        # 5. INPUT CARD
-        self.input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(160), bg_color_hex="#1E293B")
+        # 5. INPUT CARD (Height increased to 180dp for text visibility)
+        self.input_card = StyledCard(orientation='vertical', padding=dp(12), spacing=dp(8), size_hint_y=None, height=dp(180), bg_color_hex="#1E293B")
         
         input_header = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(8))
         self.input_title = Label(text="Input Text (English):", bold=True, font_size='14sp', color=get_color_from_hex("#38BDF8"), halign='left', valign='middle')
@@ -755,11 +882,11 @@ class TranslatorScreen(Screen):
         
     def on_input_focus(self, instance, value):
         if value:
-            # Scroll the input card into view after soft keyboard opens and window resizes
+            # Scroll the ScrollView to the very top to keep the text box fully visible above the keyboard
             from kivy.clock import Clock
             def do_scroll(dt):
-                if hasattr(self, 'scroll') and hasattr(self, 'input_card'):
-                    self.scroll.scroll_to(self.input_card)
+                if hasattr(self, 'scroll'):
+                    self.scroll.scroll_y = 1.0
             Clock.schedule_once(do_scroll, 0.35)
         
     def copy_to_clipboard(self, instance):
