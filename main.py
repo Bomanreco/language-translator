@@ -608,10 +608,10 @@ class TranslatorScreen(Screen):
         translate_btn = RoundedButton(text="Translate", bg_color_hex="#6366F1")
         translate_btn.bind(on_press=self.translate)
         
-        self.copy_btn = RoundedIconButton(text="Copy", icon_source="copy.png", bg_color_hex="#10B981", size_hint_x=0.35)
+        self.copy_btn = RoundedIconButton(text="Copy", icon_source="copy.png", bg_color_hex="#10B981", size_hint_x=0.50)
         self.copy_btn.bind(on_press=self.copy_to_clipboard)
         
-        clear_btn = RoundedIconButton(text="Clear", icon_source="clear.png", bg_color_hex="#475569", size_hint_x=0.35)
+        clear_btn = RoundedIconButton(text="Clear", icon_source="clear.png", bg_color_hex="#475569", size_hint_x=0.50)
         clear_btn.bind(on_press=self.clear)
         
         actions_row.add_widget(translate_btn)
